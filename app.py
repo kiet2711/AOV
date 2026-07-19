@@ -17,6 +17,7 @@ def index():
 def upload():
     token = request.form.get('token')
     is_share = request.form.get('is_share') == 'true'
+    mode = request.form.get('mode', 'playerimage')
     file = request.files.get('file')
 
     if not token or not file:
@@ -36,8 +37,8 @@ def upload():
             loadtran._start_sign_bridge()
             
             # 2. Get user_path
-            loadtran.tprint("Dang lay user_path...")
-            user_path = loadtran.get_user_path(token)
+            loadtran.tprint(f"Dang lay user_path (mode={mode})...")
+            user_path = loadtran.get_user_path(token, mode=mode)
             if not user_path:
                 loadtran.tprint("Khong lay duoc user_path tu server (403/Loi token).")
                 return
@@ -59,7 +60,7 @@ def upload():
             }
             results = {}
             loadtran.tprint(f"Bat dau upload (Quang truong: {is_share})...")
-            loadtran.acc_worker(acc, [media_info], is_share, results, dry_run=False)
+            loadtran.acc_worker(acc, [media_info], is_share, results, dry_run=False, mode=mode)
             
             loadtran.tprint("== HOAN THANH ==")
         except Exception as e:

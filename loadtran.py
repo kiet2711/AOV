@@ -452,9 +452,15 @@ def cos_put(session, url, data, headers, label=""):
             tprint(err("COS loi: "+str(e))); return None
     return resp
 
-def get_user_path(auth_token):
+def get_user_path(auth_token, mode="playerimage"):
     sess = make_session()
-    rc = api_post(sess, "/api/game/poster/getcoscredential", {"scene": "PlayerimagePoster", "fileName": "0/1/test.png"}, auth_token, fallback_token=auth_token)
+    if mode == "flowborn_marksman":
+        payload = {"scene": "FlowbornPoster", "fileName": "5/1/test.png"}
+    elif mode == "flowborn_mage":
+        payload = {"scene": "FlowbornPoster", "fileName": "4/1/test.png"}
+    else:
+        payload = {"scene": "PlayerimagePoster", "fileName": "0/1/test.png"}
+    rc = api_post(sess, "/api/game/poster/getcoscredential", payload, auth_token, fallback_token=auth_token)
     if rc.get("code") == 0 and rc.get("data"):
         val = rc["data"].get("path", "")
         if val:
@@ -495,13 +501,40 @@ def build_pic_info(pic_info_raw, sticker_url):
 # =============================================================================
 
 def poster_worker(idx, acc_lbl, auth_token, user_path,
-                  media, pic_info_raw, is_share, results, dry_run=False):
+                  media, pic_info_raw, is_share, results, dry_run=False, mode="playerimage"):
     tag     = "{}[{} P{:02d}]{}".format(C.CYAN+C.BOLD, acc_lbl[:14], idx, C.RESET)
     session = make_session()
     png_b    = media["png_bytes"]
     anim_b   = media["anim_bytes"]
     anim_ext = media["anim_ext"]
     fname    = media.get("name", "?")
+
+    is_flowborn = mode.startswith("flowborn_")
+    create_url = "/api/game/poster/flowborn/createposter" if is_flowborn else "/api/game/poster/playerimage/createposter"
+    save_url = "/api/game/poster/flowborn/saveposter" if is_flowborn else "/api/game/poster/playerimage/saveposter"
+    scene_name = "FlowbornPoster" if is_flowborn else "PlayerimagePoster"
+
+    if mode == "flowborn_marksman":
+        file_prefix = "5/1/"
+        mainJob = 5
+        bg_id = "36"
+        bg_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/HhwhCACm.jpg"
+        baseInfo_id = "37"
+        baseInfo_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/y0MLqdvn.png"
+    elif mode == "flowborn_mage":
+        file_prefix = "4/1/"
+        mainJob = 4
+        bg_id = "30"
+        bg_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/4uxOQChv.png"
+        baseInfo_id = "67"
+        baseInfo_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/FXolJdyY.png"
+    else:
+        file_prefix = "0/1/"
+        mainJob = 0
+        bg_id = ""
+        bg_picUrl = ""
+        baseInfo_id = ""
+        baseInfo_picUrl = ""
 
     if dry_run:
         tprint("{} {}[DRY RUN]{} {} OK ({:,}B)".format(tag, C.YELLOW, C.RESET, fname[:20], len(png_b)))
@@ -510,7 +543,7 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
     try:
         # A. createposter
         tprint("{} Tao poster {}...".format(tag, dim(fname[:18])))
-        r = api_post(session, "/api/game/poster/playerimage/createposter",
+        r = api_post(session, create_url,
                      {}, auth_token, fallback_token=auth_token)
         if r.get("code") != 0:
             tprint("{} {}".format(tag, err("createposter: "+r.get("msg","")[:40])))
@@ -522,20 +555,20 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
         # B. COS credentials (rieng cho moi poster)
         def get_creds(filename):
             rc = api_post(session, "/api/game/poster/getcoscredential",
-                         {"scene": "PlayerimagePoster", "fileName": filename},
+                         {"scene": scene_name, "fileName": filename},
                          auth_token, fallback_token=auth_token)
             return rc["data"] if rc.get("code") == 0 else None
 
-        creds1 = get_creds("0/1/{}.png".format(pid))
+        creds1 = get_creds("{}{}.png".format(file_prefix, pid))
         if not creds1:
             tprint("{} {}".format(tag, err("getCOS FAIL")))
             results[idx-1] = (False, "getCOS fail"); return
-        creds2 = get_creds("0/1/{}_large.png".format(pid)) or creds1
+        creds2 = get_creds("{}{}_large.png".format(file_prefix, pid)) or creds1
         time.sleep(0.3)
 
         # C. COS upload
-        ck   = "{}0/1/{}.png".format(user_path, pid)
-        ck_l = "{}0/1/{}_large.png".format(user_path, pid)
+        ck   = "{}{}{}.png".format(user_path, file_prefix, pid)
+        ck_l = "{}{}{}_large.png".format(user_path, file_prefix, pid)
 
         def mkhdr(key, buf, creds_in):
             return {
@@ -558,8 +591,8 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
         sticker_url = UGC_CDN_BASE + ck
 
         if anim_b is not None and anim_ext:
-            ck_a = "{}0/1/{}.{}".format(user_path, pid, anim_ext)
-            creds3 = get_creds("0/1/{}.{}".format(pid, anim_ext)) or creds1
+            ck_a = "{}{}{}.{}".format(user_path, file_prefix, pid, anim_ext)
+            creds3 = get_creds("{}{}.{}".format(file_prefix, pid, anim_ext)) or creds1
             r_a  = cos_put(session, "https://"+COS_HOST+ck_a,
                            anim_b, mkhdr(ck_a, anim_b, creds3), "."+anim_ext)
             if r_a is not None and r_a.status_code == 200:
@@ -570,19 +603,50 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
 
         time.sleep(0.5)
 
-        # D. savepostereditinfo (bat buoc truoc saveposter)
-        pi = build_pic_info(pic_info_raw, sticker_url)
-        rs = api_post(session, "/api/game/poster/playerimage/savepostereditinfo",
-                      {"picInfo": pi}, auth_token,
-                      retry_on_code1=True, max_retries=4, delay=4.0, fallback_token=auth_token)
-        tprint("{} editInfo {}".format(
-            tag, ok("OK") if rs.get("code")==0 else warn("code={}".format(rs.get("code")))))
-        time.sleep(1.5)
+        # D. savepostereditinfo (chi cho playerimage)
+        if not is_flowborn:
+            pi = build_pic_info(pic_info_raw, sticker_url)
+            rs = api_post(session, "/api/game/poster/playerimage/savepostereditinfo",
+                          {"picInfo": pi}, auth_token,
+                          retry_on_code1=True, max_retries=4, delay=4.0, fallback_token=auth_token)
+            tprint("{} editInfo {}".format(
+                tag, ok("OK") if rs.get("code")==0 else warn("code={}".format(rs.get("code")))))
+            time.sleep(1.5)
 
         # E. saveposter
-        rp = api_post(session, "/api/game/poster/playerimage/saveposter",
-                      {"posterId": pid, "isApply": True, "isShare": is_share,
-                       "picUrl": UGC_CDN_BASE+user_path, "picInfo": pi},
+        if is_flowborn:
+            payload = {
+                "posterId": pid,
+                "isApply": True,
+                "isShare": is_share,
+                "mainJob": mainJob,
+                "picInfo": {
+                    "bg": {
+                        "id": bg_id,
+                        "picUrl": bg_picUrl
+                    },
+                    "baseInfo": {
+                        "id": baseInfo_id,
+                        "gender": 2,
+                        "mainJob": mainJob,
+                        "picUrl": baseInfo_picUrl,
+                        "skinColor": 2
+                    },
+                    "stickerList": []
+                },
+                "picUrl": UGC_CDN_BASE + user_path
+            }
+        else:
+            payload = {
+                "posterId": pid,
+                "isApply": True,
+                "isShare": is_share,
+                "picUrl": UGC_CDN_BASE+user_path,
+                "picInfo": pi
+            }
+            
+        rp = api_post(session, save_url,
+                      payload,
                       auth_token, retry_on_code1=True, max_retries=4, delay=4.0,
                       fallback_token=auth_token)
 
@@ -607,7 +671,7 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
 # ACC WORKER
 # =============================================================================
 
-def acc_worker(acc, media_list, is_share, acc_results, dry_run=False):
+def acc_worker(acc, media_list, is_share, acc_results, dry_run=False, mode="playerimage"):
     lbl = acc["label"]
     tprint("\n" + sep(62, "=", C.CYAN))
     tprint("{}  START  {}{}".format(C.CYAN+C.BOLD, lbl, C.RESET))
@@ -624,16 +688,17 @@ def acc_worker(acc, media_list, is_share, acc_results, dry_run=False):
     _start_sign_bridge()
 
     sess = make_session()
-    tprint(info("  Lay picInfo hien tai..."))
-    r = api_post(sess, "/api/game/poster/playerimage/getpostereditinfo",
-                 {}, auth_token, fallback_token=auth_token)
-    if r.get("code") == 0 and r.get("data", {}).get("picInfo"):
-        pic_info_raw = r["data"]["picInfo"]
-        tprint(ok("  picInfo OK"))
-    else:
-        pic_info_raw = {}
-        tprint(warn("  Dung cau hinh mac dinh"))
-    time.sleep(0.5)
+    pic_info_raw = {}
+    if not mode.startswith("flowborn_"):
+        tprint(info("  Lay picInfo hien tai..."))
+        r = api_post(sess, "/api/game/poster/playerimage/getpostereditinfo",
+                     {}, auth_token, fallback_token=auth_token)
+        if r.get("code") == 0 and r.get("data", {}).get("picInfo"):
+            pic_info_raw = r["data"]["picInfo"]
+            tprint(ok("  picInfo OK"))
+        else:
+            tprint(warn("  Dung cau hinh mac dinh"))
+        time.sleep(0.5)
 
     n_media    = len(media_list)
     total_ok   = total_fail = 0
@@ -649,7 +714,7 @@ def acc_worker(acc, media_list, is_share, acc_results, dry_run=False):
         t = threading.Thread(
             target=poster_worker,
             args=(i, lbl, auth_token, user_path, m, pic_info_raw, is_share, results),
-            kwargs={"dry_run": dry_run},
+            kwargs={"dry_run": dry_run, "mode": mode},
             daemon=True,
         )
         threads.append(t)

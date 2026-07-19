@@ -72,6 +72,7 @@ document.addEventListener('DOMContentLoaded', function () {
             formData.append('file', blob, 'cropped.jpg');
             formData.append('token', tokenInput.value.trim());
             formData.append('is_share', isShareInput.checked);
+            formData.append('mode', document.getElementById('mode').value);
 
             fetch('/upload', {
                 method: 'POST',
