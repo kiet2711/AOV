@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KGVN Load Tran - Web UI</title>
+    <!-- Cropper.js CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>KGVN <span>Load Tran</span></h1>
+            <p>Thay ảnh load trận Liên Quân - Multi-Account Tool</p>
+        </header>
+
+        <main>
+            <div class="card">
+                <h2>1. Nhập thông tin</h2>
+                <div class="form-group">
+                    <label for="token">Token (msdk-itopencodeparam)</label>
+                    <input type="text" id="token" placeholder="Nhập token tại đây..." required>
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="isShare" checked>
+                    <label for="isShare">Quảng trường (Mọi người đều thấy)</label>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>2. Chọn & Cắt ảnh</h2>
+                <div class="form-group">
+                    <label class="file-upload-btn" for="imageInput">
+                        <span>📷 Chọn ảnh từ thiết bị</span>
+                    </label>
+                    <input type="file" id="imageInput" accept="image/png, image/jpeg, image/webp, image/gif" style="display: none;">
+                </div>
+
+                <div class="cropper-container" id="cropperWrapper" style="display: none;">
+                    <div class="img-container">
+                        <img id="image" src="">
+                    </div>
+                </div>
+            </div>
+
+            <button id="uploadBtn" class="primary-btn" disabled>Tải lên & Xử lý</button>
+
+            <div class="card log-card">
+                <h2>3. Tiến trình xử lý</h2>
+                <div id="logBox" class="terminal-log">
+                    <span class="text-gray">Chưa bắt đầu...</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Cropper.js JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <script src="/static/script.js"></script>
+</body>
+</html>
