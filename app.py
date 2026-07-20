@@ -32,39 +32,42 @@ def upload():
 
     def run_worker():
         try:
-            loadtran.tprint("== BAT DAU XU LY ==")
-            # 1. Start sign bridge if needed
+            loadtran.tprint("== BẮT ĐẦU XỬ LÝ ==")
+
+            # 1. Khởi động Sign Bridge nếu chưa chạy
             loadtran._start_sign_bridge()
-            
-            # 2. Get user_path
-            loadtran.tprint(f"Dang lay user_path (mode={mode})...")
+
+            # 2. Xác thực token và lấy thông tin tài khoản
+            mode_label = {"playerimage": "Ảnh tải trận", "flowborn_marksman": "Flowborn (Xạ thủ)", "flowborn_mage": "Flowborn (Pháp sư)"}.get(mode, mode)
+            loadtran.tprint(f"🔑 Đang xác thực token... (Chế độ: {mode_label})")
             user_path = loadtran.get_user_path(token, mode=mode)
             if not user_path:
-                loadtran.tprint("Khong lay duoc user_path tu server (403/Loi token).")
+                loadtran.tprint("❌ Xác thực thất bại! Token không hợp lệ hoặc đã hết hạn. Vui lòng lấy token mới từ game.")
                 return
 
-            loadtran.tprint(f"user_path: {user_path}")
+            loadtran.tprint(f"✅ Xác thực thành công! Đã tìm thấy tài khoản.")
 
-            # 3. Prepare media
-            loadtran.tprint(f"Xu ly media: {file_path}")
-            media_info = loadtran.prepare_media(Path(file_path), auto_resize=False) # Already cropped frontend
+            # 3. Chuẩn bị ảnh
+            loadtran.tprint(f"🖼️  Đang chuẩn bị ảnh để tải lên...")
+            media_info = loadtran.prepare_media(Path(file_path), auto_resize=False)
             if not media_info:
-                loadtran.tprint("Loi xu ly media")
+                loadtran.tprint("❌ Lỗi xử lý ảnh! File ảnh bị hỏng hoặc định dạng không được hỗ trợ.")
                 return
 
-            # 4. Run worker
+            # 4. Tiến hành tải lên
             acc = {
                 "label": "Web-Account",
                 "token": token,
                 "user_path": user_path
             }
             results = {}
-            loadtran.tprint(f"Bat dau upload (Quang truong: {is_share})...")
+            share_label = "Quảng trường (mọi người thấy)" if is_share else "Chỉ mình tôi"
+            loadtran.tprint(f"📤 Bắt đầu tải lên... (Hiển thị: {share_label})")
             loadtran.acc_worker(acc, [media_info], is_share, results, dry_run=False, mode=mode)
-            
-            loadtran.tprint("== HOAN THANH ==")
+
+            loadtran.tprint("== HOÀN THÀNH ==")
         except Exception as e:
-            loadtran.tprint(f"Loi Exception: {e}")
+            loadtran.tprint(f"❌ Đã xảy ra lỗi không mong muốn: {e}")
 
     # Run in background
     thread = threading.Thread(target=run_worker, daemon=True)

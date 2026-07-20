@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (data.logs && data.logs.length > 0) {
                     data.logs.forEach(log => appendLog(log));
                     // Check if done
-                    if (data.logs.some(l => l.includes("== HOAN THANH =="))) {
+                    if (data.logs.some(l => l.includes("== HOÀN THÀNH =="))) {
                         stopPolling();
                     }
                 }
@@ -110,12 +110,42 @@ document.addEventListener('DOMContentLoaded', function () {
     function appendLog(msg, colorClass = "") {
         const div = document.createElement('div');
         div.textContent = msg;
-        if (colorClass) div.className = colorClass;
-        
-        // Simple color parsing based on keywords
-        if (msg.includes("OK") || msg.includes("Thanh cong")) div.className = "text-green";
-        else if (msg.includes("FAIL") || msg.includes("THAT BAI") || msg.includes("Loi") || msg.includes("Exception")) div.className = "text-red";
-        else if (msg.includes("START") || msg.includes("DONE")) div.className = "text-blue";
+
+        // Color-code by message content
+        if (
+            msg.includes("THÀNH CÔNG") ||
+            msg.includes("thành công") ||
+            msg.includes("✅") ||
+            msg.includes("🎉")
+        ) {
+            div.className = "text-green";
+        } else if (
+            msg.includes("❌") ||
+            msg.includes("thất bại") ||
+            msg.includes("Lỗi") ||
+            msg.includes("không hợp lệ")
+        ) {
+            div.className = "text-red";
+        } else if (
+            msg.includes("⚠️") ||
+            msg.includes("mặc định")
+        ) {
+            div.className = "text-yellow";
+        } else if (
+            msg.includes("🔑") ||
+            msg.includes("⏳") ||
+            msg.includes("☁️") ||
+            msg.includes("🔄") ||
+            msg.includes("📤") ||
+            msg.includes("💾") ||
+            msg.includes("🔍") ||
+            msg.includes("🚀") ||
+            msg.includes("🖼️")
+        ) {
+            div.className = "text-blue";
+        } else if (colorClass) {
+            div.className = colorClass;
+        }
 
         logBox.appendChild(div);
         logBox.scrollTop = logBox.scrollHeight;

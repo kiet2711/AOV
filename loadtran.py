@@ -502,12 +502,12 @@ def build_pic_info(pic_info_raw, sticker_url):
 
 def poster_worker(idx, acc_lbl, auth_token, user_path,
                   media, pic_info_raw, is_share, results, dry_run=False, mode="playerimage"):
-    tag     = "{}[{} P{:02d}]{}".format(C.CYAN+C.BOLD, acc_lbl[:14], idx, C.RESET)
     session = make_session()
     png_b    = media["png_bytes"]
     anim_b   = media["anim_bytes"]
     anim_ext = media["anim_ext"]
     fname    = media.get("name", "?")
+    step_tag = "Ảnh #{:02d}".format(idx)
 
     is_flowborn = mode.startswith("flowborn_")
     create_url = "/api/game/poster/flowborn/createposter" if is_flowborn else "/api/game/poster/playerimage/createposter"
@@ -537,22 +537,23 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
         baseInfo_picUrl = ""
 
     if dry_run:
-        tprint("{} {}[DRY RUN]{} {} OK ({:,}B)".format(tag, C.YELLOW, C.RESET, fname[:20], len(png_b)))
+        tprint("{} [DRY RUN] Kiểm tra xong - không thực hiện tải lên ({:,}B)".format(step_tag, len(png_b)))
         results[idx-1] = (True, "DRY-RUN", "", "IMG"); return
 
     try:
-        # A. createposter
-        tprint("{} Tao poster {}...".format(tag, dim(fname[:18])))
+        # A. Tạo poster mới trên server
+        tprint("{} ⏳ Đang tạo slot poster trên server...".format(step_tag))
         r = api_post(session, create_url,
                      {}, auth_token, fallback_token=auth_token)
         if r.get("code") != 0:
-            tprint("{} {}".format(tag, err("createposter: "+r.get("msg","")[:40])))
-            results[idx-1] = (False, "createposter: "+r.get("msg","")[:40]); return
+            err_msg = r.get("msg", "Lỗi không rõ")
+            tprint("{} ❌ Tạo poster thất bại: {}".format(step_tag, err_msg[:60]))
+            results[idx-1] = (False, "Tạo poster: "+err_msg[:40]); return
         pid = r["data"]["posterId"]
-        tprint("{} PosterID={}{}{}".format(tag, C.YELLOW, pid, C.RESET))
+        tprint("{} ✅ Tạo poster thành công (ID: {})".format(step_tag, pid))
         time.sleep(0.5)
 
-        # B. COS credentials (rieng cho moi poster)
+        # B. Lấy quyền upload lên Cloud
         def get_creds(filename):
             rc = api_post(session, "/api/game/poster/getcoscredential",
                          {"scene": scene_name, "fileName": filename},
@@ -561,12 +562,12 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
 
         creds1 = get_creds("{}{}.png".format(file_prefix, pid))
         if not creds1:
-            tprint("{} {}".format(tag, err("getCOS FAIL")))
-            results[idx-1] = (False, "getCOS fail"); return
+            tprint("{} ❌ Không lấy được quyền upload. Server từ chối cấp phép.".format(step_tag))
+            results[idx-1] = (False, "Không có quyền upload"); return
         creds2 = get_creds("{}{}_large.png".format(file_prefix, pid)) or creds1
         time.sleep(0.3)
 
-        # C. COS upload
+        # C. Upload ảnh lên Cloud
         ck   = "{}{}{}.png".format(user_path, file_prefix, pid)
         ck_l = "{}{}{}_large.png".format(user_path, file_prefix, pid)
 
@@ -582,38 +583,44 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
                 "Referer":              "https://kgvn-camp.mobagarena.com/",
             }
 
+        tprint("{} ☁️  Đang tải ảnh lên server ({:,} KB)...".format(step_tag, len(png_b)//1024))
         r2 = cos_put(session, "https://"+COS_HOST+ck, png_b, mkhdr(ck, png_b, creds1), ".png")
         if r2 is None or r2.status_code != 200:
-            tprint("{} {}".format(tag, err("COS .png FAIL")))
-            results[idx-1] = (False, "COS .png fail"); return
-        tprint("{} COS .png {} {:,}B".format(tag, ok("OK"), len(png_b)))
+            tprint("{} ❌ Tải ảnh lên thất bại! Kiểm tra kết nối mạng.".format(step_tag))
+            results[idx-1] = (False, "Upload ảnh thất bại"); return
+        tprint("{} ✅ Tải ảnh lên thành công!".format(step_tag))
         cos_put(session, "https://"+COS_HOST+ck_l, png_b, mkhdr(ck_l, png_b, creds2), "_large")
         sticker_url = UGC_CDN_BASE + ck
 
         if anim_b is not None and anim_ext:
             ck_a = "{}{}{}.{}".format(user_path, file_prefix, pid, anim_ext)
             creds3 = get_creds("{}{}.{}".format(file_prefix, pid, anim_ext)) or creds1
+            tprint("{} ☁️  Đang tải GIF động lên server ({:,} KB)...".format(step_tag, len(anim_b)//1024))
             r_a  = cos_put(session, "https://"+COS_HOST+ck_a,
                            anim_b, mkhdr(ck_a, anim_b, creds3), "."+anim_ext)
             if r_a is not None and r_a.status_code == 200:
                 sticker_url = UGC_CDN_BASE + ck_a
-                tprint("{} COS .{} {} {:,}B {}".format(tag, anim_ext, ok("OK"), len(anim_b), dim("(animation)")))
+                tprint("{} ✅ Tải GIF động lên thành công!".format(step_tag))
             else:
-                tprint("{} {}".format(tag, warn(".{} FAIL -> dung .png".format(anim_ext))))
+                tprint("{} ⚠️  GIF động thất bại, dùng ảnh tĩnh thay thế.".format(step_tag))
 
         time.sleep(0.5)
 
-        # D. savepostereditinfo (chi cho playerimage)
+        # D. Lưu thông tin khung ảnh (chỉ cho playerimage)
         if not is_flowborn:
+            tprint("{} 💾 Đang lưu thiết lập khung ảnh...".format(step_tag))
             pi = build_pic_info(pic_info_raw, sticker_url)
             rs = api_post(session, "/api/game/poster/playerimage/savepostereditinfo",
                           {"picInfo": pi}, auth_token,
                           retry_on_code1=True, max_retries=4, delay=4.0, fallback_token=auth_token)
-            tprint("{} editInfo {}".format(
-                tag, ok("OK") if rs.get("code")==0 else warn("code={}".format(rs.get("code")))))
+            if rs.get("code") == 0:
+                tprint("{} ✅ Lưu khung ảnh thành công!".format(step_tag))
+            else:
+                tprint("{} ⚠️  Lưu khung ảnh không thuận lợi (code={}), tiếp tục...".format(step_tag, rs.get("code")))
             time.sleep(1.5)
 
-        # E. saveposter
+        # E. Áp dụng poster
+        tprint("{} 🔄 Đang áp dụng ảnh tải trận vào tài khoản...".format(step_tag))
         if is_flowborn:
             payload = {
                 "posterId": pid,
@@ -644,28 +651,29 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
                 "picUrl": UGC_CDN_BASE+user_path,
                 "picInfo": pi
             }
-            
+
         rp = api_post(session, save_url,
                       payload,
                       auth_token, retry_on_code1=True, max_retries=4, delay=4.0,
                       fallback_token=auth_token)
 
         unavail = rp.get("data", {}).get("unavailableResources", [])
-        kind    = "{}GIF{}".format(C.CYAN, C.RESET) if anim_b else "IMG"
+        kind    = "GIF động" if anim_b else "Ảnh tĩnh"
 
         if rp.get("code") == 0 and not unavail:
-            tprint("{} {} ID={}{}{}  [{}]".format(tag, ok("THANH CONG"), C.GREEN, pid, C.RESET, kind))
+            tprint("{} 🎉 THÀNH CÔNG! Ảnh tải trận đã được cập nhật! [{}]".format(step_tag, kind))
             results[idx-1] = (True, pid, sticker_url, kind)
         elif rp.get("code") == 0:
-            tprint("{} {} (co resource bi tu choi)".format(tag, ok("OK")))
+            tprint("{} ✅ Ảnh đã được lưu (một số tài nguyên phụ bị từ chối, nhưng không ảnh hưởng ảnh chính).".format(step_tag))
             results[idx-1] = (True, pid, sticker_url, kind)
         else:
-            tprint("{} {} {}".format(tag, err("THAT BAI"), rp.get("msg","")[:40]))
-            results[idx-1] = (False, "saveposter: "+rp.get("msg","")[:40])
+            err_msg = rp.get("msg", "Lỗi không rõ")
+            tprint("{} ❌ Áp dụng thất bại: {}".format(step_tag, err_msg[:60]))
+            results[idx-1] = (False, "Áp dụng: "+err_msg[:40])
 
     except Exception as e:
-        tprint("{} {}".format(tag, err("EXCEPTION: "+str(e)[:50])))
-        results[idx-1] = (False, "exception: "+str(e)[:40])
+        tprint("{} ❌ Lỗi hệ thống: {}".format(step_tag, str(e)[:80]))
+        results[idx-1] = (False, "Lỗi: "+str(e)[:40])
 
 # =============================================================================
 # ACC WORKER
@@ -674,30 +682,28 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
 def acc_worker(acc, media_list, is_share, acc_results, dry_run=False, mode="playerimage"):
     lbl = acc["label"]
     tprint("\n" + sep(62, "=", C.CYAN))
-    tprint("{}  START  {}{}".format(C.CYAN+C.BOLD, lbl, C.RESET))
+    tprint("{}  BỮT ĐẦU  {}{}".format(C.CYAN+C.BOLD, lbl, C.RESET))
     tprint(sep(62, "=", C.CYAN))
 
     auth_token = acc.get("token")
     user_path = acc.get("user_path")
     if not auth_token or not user_path:
-        tprint(err("  [{}] Khong co token/path -- bo qua".format(lbl)))
+        tprint(err("  [{}] Thiếu token hoặc đường dẫn tài khoản -- bỏ qua".format(lbl)))
         acc_results[lbl] = {"ok":0,"fail":0,"rounds":[]}; return
 
-    tprint(dim("  Token   : {}...".format(auth_token[:35])))
-    tprint(dim("  COS     : {}".format(user_path)))
     _start_sign_bridge()
 
     sess = make_session()
     pic_info_raw = {}
     if not mode.startswith("flowborn_"):
-        tprint(info("  Lay picInfo hien tai..."))
+        tprint("🔍 Đang lấy thông tin khung ảnh hiện tại của bạn...")
         r = api_post(sess, "/api/game/poster/playerimage/getpostereditinfo",
                      {}, auth_token, fallback_token=auth_token)
         if r.get("code") == 0 and r.get("data", {}).get("picInfo"):
             pic_info_raw = r["data"]["picInfo"]
-            tprint(ok("  picInfo OK"))
+            tprint("✅ Lấy thông tin khung ảnh thành công!")
         else:
-            tprint(warn("  Dung cau hinh mac dinh"))
+            tprint("⚠️  Sử dụng cấu hình khung ảnh mặc định.")
         time.sleep(0.5)
 
     n_media    = len(media_list)
@@ -705,8 +711,7 @@ def acc_worker(acc, media_list, is_share, acc_results, dry_run=False, mode="play
     round_logs = []
 
     tprint("")
-    tprint("{}  [{}] Thuc hien  --  {} media song song{}".format(
-        C.CYAN+C.BOLD, lbl[:16], n_media, C.RESET))
+    tprint("🚀 Chuẩn bị tải lên {} ảnh...".format(n_media))
 
     results = [None]*n_media
     threads = []
@@ -732,27 +737,15 @@ def acc_worker(acc, media_list, is_share, acc_results, dry_run=False, mode="play
     total_fail += fail_n
     round_logs.append((1, results))
 
-    summary = "{} OK  {} FAIL".format(
-        "{}{}{}".format(C.GREEN, ok_n, C.RESET),
-        "{}{}{}".format(C.RED, fail_n, C.RESET))
-    tprint("  {}[{}] Ket qua: {}{}".format(C.BOLD, lbl[:16], summary, C.RESET))
-
     tprint("")
-    tprint("{}+-- DONE: {} {}".format(C.CYAN+C.BOLD, lbl, C.RESET))
+    tprint("📊 Kết quả: {} thành công / {} thất bại".format(ok_n, fail_n))
     for i, res in enumerate(results, 1):
         if res and res[0]:
-            kind = res[3] if len(res) > 3 else "?"
-            tprint("{}|{}  #{:02d} {}  [{}]  ID={}".format(
-                C.CYAN, C.RESET, i, ok("OK"), kind, res[1]))
+            kind = "GIF động" if (len(res) > 3 and res[3] != "IMG") else "Ảnh tĩnh"
+            tprint("✅ Ảnh #{:02d}: Tải lên thành công! [{}]".format(i, kind))
         else:
-            msg = str(res[1])[:35] if res else "?"
-            tprint("{}|{}  #{:02d} {}  {}".format(
-                C.CYAN, C.RESET, i, err("FAIL"), msg))
-    tprint("{}+-- OK:{} {}{}{}  FAIL:{} {}{}{}  TONG:{}{}".format(
-        C.CYAN,
-        C.RESET, C.GREEN+C.BOLD, total_ok, C.RESET,
-        C.RESET, C.RED+C.BOLD, total_fail, C.RESET,
-        C.BOLD, n_media) + C.RESET)
+            msg = str(res[1])[:50] if res else "Lỗi không xác định"
+            tprint("❌ Ảnh #{:02d}: Thất bại - {}".format(i, msg))
 
     acc_results[lbl] = {"ok":total_ok,"fail":total_fail,"rounds":round_logs}
 
