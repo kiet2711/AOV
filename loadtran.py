@@ -152,7 +152,13 @@ def strip_ansi(text):
 _print_lock = threading.Lock()
 def tprint(msg):
     with _print_lock:
-        print(msg, flush=True)
+        try:
+            print(msg, flush=True)
+        except UnicodeEncodeError:
+            try:
+                print(msg.encode(sys.stdout.encoding, errors='replace').decode(sys.stdout.encoding), flush=True)
+            except Exception:
+                print(msg.encode('ascii', errors='replace').decode('ascii'), flush=True)
         log_buffer.append(strip_ansi(msg))
 
 # =============================================================================
@@ -515,10 +521,13 @@ def get_account_info(auth_token):
         if r2.get("data") and r2["data"].get("picInfo"):
             pi = r2["data"]["picInfo"]
             print(f"[DEBUG picInfo] keys={list(pi.keys())}", file=sys.stderr, flush=True)
+            import json
+            print(f"[DEBUG picInfo full] {json.dumps(pi, ensure_ascii=False)[:3000]}", file=sys.stderr, flush=True)
             # Thu lay tu stickerList truoc
             sticker_list = pi.get("stickerList", [])
             if sticker_list:
-                url_candidate = sticker_list[0].get("picUrl") or ""
+                # Get the last sticker (often the most recently added) instead of the first
+                url_candidate = sticker_list[-1].get("picUrl") or ""
                 if url_candidate:
                     current_poster_url = url_candidate
             # Neu stickerList khong co, thu lay tu bg.picUrl
@@ -531,6 +540,27 @@ def get_account_info(auth_token):
             direct_url = r2["data"].get("picUrl") or ""
             if direct_url and direct_url.startswith("http"):
                 current_poster_url = direct_url
+                
+        # DEBUG: THU GOI GETPOSTER XEM CO LAY DUOC ANH DA APPLY KHONG
+        endpoint_getposter = "/api/game/poster/playerimage/getposter"
+        hdrs["msdk-itopencodeparam"] = get_dynamic_encodeparam(endpoint_getposter, {}, auth_token)
+        resp_gp = sess.post(API_BASE + endpoint_getposter, json={}, headers=hdrs, timeout=25)
+        try:
+            r_gp = resp_gp.json()
+            import json
+            print(f"[DEBUG getposter] {json.dumps(r_gp, ensure_ascii=False)[:3000]}", file=sys.stderr, flush=True)
+            # Uu tien lay tu getposter neu getpostereditinfo la mac dinh
+            if r_gp.get("code") == 0 and r_gp.get("data") and r_gp["data"].get("picInfo"):
+                pi_gp = r_gp["data"]["picInfo"]
+                sl_gp = pi_gp.get("stickerList", [])
+                if sl_gp:
+                    url_gp = sl_gp[-1].get("picUrl")
+                    if url_gp:
+                        print(f"[DEBUG] FOUND POSTER IN GETPOSTER: {url_gp}", file=sys.stderr, flush=True)
+                        current_poster_url = url_gp
+        except Exception as e:
+            print(f"[DEBUG getposter error] {e}", file=sys.stderr, flush=True)
+            
     except Exception as ex:
         import sys
         print(f"[DEBUG getpostereditinfo ERROR] {ex}", file=sys.stderr, flush=True)
