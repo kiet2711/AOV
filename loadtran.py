@@ -469,6 +469,52 @@ def get_user_path(auth_token, mode="playerimage"):
                 return "/" + "/".join(parts[:3]) + "/"
     return None
 
+def get_account_info(auth_token):
+    """
+    Xac thuc token va lay thong tin tai khoan.
+    Tra ve: { token_valid, user_id, short_id, current_poster_url, user_path }
+    """
+    sess = make_session()
+
+    # 1. Xac thuc token qua getcoscredential (lay user_id tu path)
+    payload = {"scene": "PlayerimagePoster", "fileName": "0/1/test.png"}
+    rc = api_post(sess, "/api/game/poster/getcoscredential", payload, auth_token, fallback_token=auth_token)
+
+    if rc.get("code") != 0 or not rc.get("data"):
+        return {"token_valid": False, "user_id": None, "short_id": None,
+                "current_poster_url": None, "user_path": None}
+
+    # Trich xuat user_id va user_path tu path
+    val = rc["data"].get("path", "")
+    user_id = None
+    user_path = None
+    if val:
+        parts = val.strip("/").split("/")
+        if len(parts) >= 3:
+            user_id = parts[2]
+            user_path = "/" + "/".join(parts[:3]) + "/"
+
+    # 2. Lay anh poster hien tai (neu co)
+    current_poster_url = None
+    try:
+        r2 = api_post(sess, "/api/game/poster/playerimage/getpostereditinfo",
+                      {}, auth_token, fallback_token=auth_token)
+        if r2.get("code") == 0 and r2.get("data", {}).get("picInfo"):
+            sticker_list = r2["data"]["picInfo"].get("stickerList", [])
+            if sticker_list:
+                current_poster_url = sticker_list[0].get("picUrl", "")
+    except Exception:
+        pass
+
+    return {
+        "token_valid": True,
+        "user_id": user_id,
+        "short_id": user_id[:8] if user_id else None,
+        "current_poster_url": current_poster_url,
+        "user_path": user_path,
+    }
+
+
 # =============================================================================
 # BUILD picInfo
 # =============================================================================

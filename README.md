@@ -2,7 +2,7 @@
 
 > **Web:** https://aov-pamo.onrender.com
 
-Công cụ web giúp bạn dễ dàng thay **ảnh tải trận** (Load Screen) và **Flowborn** trong game Liên Quân Mobile (AOV/KGVN) chỉ qua trình duyệt, không cần cài đặt phần mềm.
+Công cụ web giúp bạn dễ dàng thay **ảnh tải trận** (Load Screen) và **Flowborn** trong game Liên Quân Mobile (AOV/KGVN) chỉ qua trình duyệt. Hỗ trợ lưu và chuyển đổi nhanh giữa nhiều tài khoản.
 
 ---
 
@@ -13,10 +13,12 @@ Công cụ web giúp bạn dễ dàng thay **ảnh tải trận** (Load Screen) 
 | 🖼️ Ảnh tải trận | Thay ảnh hiển thị khi đang vào trận |
 | ⚔️ Flowborn (Xạ thủ) | Thay ảnh Flowborn nhân vật vai Xạ thủ |
 | 🔮 Flowborn (Pháp sư) | Thay ảnh Flowborn nhân vật vai Pháp sư |
-| ✂️ Crop ảnh trực tiếp | Cắt ảnh đúng tỷ lệ 1080×1701 ngay trên web, không cần phần mềm |
-| 🌐 Quảng trường | Tùy chọn hiển thị ảnh ở khu vực Quảng trường (mọi người thấy) |
+| ✂️ Crop ảnh trực tiếp | Cắt ảnh đúng tỷ lệ 1080×1701 ngay trên web |
+| 🌐 Quảng trường | Tùy chọn hiển thị ảnh ở khu vực Quảng trường |
+| 👤 Quản lý tài khoản | Lưu tối đa 5 tài khoản, chuyển đổi 1 click |
+| 🔍 Xác thực token | Tự động verify token và hiển thị thông tin tài khoản |
 | 📊 Log tiến trình | Hiển thị từng bước xử lý theo thời gian thực |
-| 🔒 Sign Bridge | Tự động ký xác thực động, tránh lỗi -5001 |
+| 🔒 Sign Bridge | Tự động ký xác thực động, tránh lỗi `-5001` |
 
 ---
 
@@ -31,24 +33,45 @@ Token là mã xác thực tài khoản của bạn. Cách lấy:
 3. Dùng công cụ chặn traffic (HTTP Toolkit, Fiddler, mitmproxy...) để bắt request
 4. Tìm request đến `kgvn-api.mobagarena.com` và sao chép giá trị header **`msdk-itopencodeparam`**
 
-> ⚠️ Token có thời hạn ngắn (thường vài giờ). Nếu gặp lỗi, hãy lấy token mới.
+> ⚠️ Token có thời hạn ngắn (khoảng 1-2 giờ). Nếu gặp lỗi, hãy lấy token mới.
 
-### Bước 2 — Chọn ảnh và cắt
+### Bước 2 — Nhập token và xác thực
 
-1. Nhấn **"Chọn ảnh"** để tải ảnh lên
+1. Dán token vào ô nhập, tool sẽ **tự động xác thực** sau 1 giây
+2. Nếu hợp lệ: hiển thị **User ID** và **ảnh tải trận hiện tại** của bạn
+3. Nhấn **"💾 Lưu tài khoản"** để lưu lại cho lần sau (có thể đặt tên)
+
+### Bước 3 — Chọn ảnh và cắt
+
+1. Nhấn **"Chọn ảnh từ thiết bị"** để tải ảnh lên
 2. Dùng công cụ crop để chọn vùng muốn hiển thị (tỷ lệ tự động 1080×1701)
-3. Kéo / thu phóng để căn chỉnh ảnh theo ý muốn
 
-### Bước 3 — Cài đặt và tải lên
+### Bước 4 — Tải lên
 
-| Cài đặt | Tùy chọn |
+1. Chọn **Chế độ** và cài đặt **Quảng trường**
+2. Nhấn **"📤 Tải lên & Xử lý"**
+3. Theo dõi tiến trình trong khung log bên dưới
+
+---
+
+## 👤 Quản lý tài khoản
+
+### Lưu và chuyển đổi tài khoản
+
+- **Lưu:** Sau khi xác thực token thành công → nhấn "💾 Lưu tài khoản" → đặt tên tùy ý
+- **Chuyển đổi:** Click vào card tài khoản đã lưu → token tự động điền và xác thực ngay
+- **Đổi tên:** Hover vào card → nhấn ✏️ → nhập tên mới
+- **Xóa:** Hover vào card → nhấn 🗑️
+
+### Badge trạng thái token
+
+| Badge | Ý nghĩa |
 |---|---|
-| **Chế độ** | Ảnh tải trận / Flowborn Xạ thủ / Flowborn Pháp sư |
-| **Hiển thị** | ☑️ Quảng trường = mọi người thấy ảnh của bạn |
+| 🟢 **Mới** | Token < 1 giờ — Hoạt động tốt |
+| 🟡 **Cũ** | Token 1–2 giờ — Có thể dùng được |
+| 🔴 **Hết hạn** | Token > 2 giờ — Nên lấy token mới |
 
-4. Dán **Token** vào ô nhập
-5. Nhấn **"Tải lên & Xử lý"**
-6. Theo dõi tiến trình trong khung log bên dưới
+> **Lưu ý:** Tài khoản tự động bị xóa sau **4 giờ** (token hết hiệu lực). Tối đa **5 tài khoản** lưu cùng lúc.
 
 ---
 
@@ -88,9 +111,9 @@ Khi nhấn tải lên, bạn sẽ thấy các bước sau trong log:
 | Thông báo | Nguyên nhân | Cách xử lý |
 |---|---|---|
 | `❌ Xác thực thất bại! Token không hợp lệ hoặc đã hết hạn.` | Token sai hoặc hết hạn | Lấy lại token mới từ game |
-| `❌ Đã xảy ra lỗi không mong muốn: 403` | Token bị từ chối | Thử lấy token trong khoảng thời gian gần nhất |
+| Badge 🔴 Hết hạn trên card tài khoản | Token đã > 2 giờ | Vào game → lấy token mới → lưu lại |
 
-> 💡 Token thường hết hạn sau **2–4 giờ**. Hãy lấy token khi vừa mở game xong.
+> 💡 Token thường hết hạn sau **1–2 giờ**. Hãy lấy token khi vừa mở game xong.
 
 ---
 
@@ -99,7 +122,7 @@ Khi nhấn tải lên, bạn sẽ thấy các bước sau trong log:
 | Thông báo | Nguyên nhân | Cách xử lý |
 |---|---|---|
 | `❌ Không lấy được quyền upload. Server từ chối cấp phép.` | Server game lỗi tạm thời hoặc token yếu | Thử lại sau vài phút hoặc lấy token mới |
-| `❌ Tải ảnh lên thất bại! Kiểm tra kết nối mạng.` | Mạng không ổn định hoặc server COS lỗi | Kiểm tra kết nối internet, thử lại |
+| `❌ Tải ảnh lên thất bại! Kiểm tra kết nối mạng.` | Mạng không ổn định | Kiểm tra kết nối internet, thử lại |
 | `❌ Tạo poster thất bại: frequency limited` | Gửi quá nhiều request liên tiếp | Đợi 30–60 giây rồi thử lại |
 | `⚠️  GIF động thất bại, dùng ảnh tĩnh thay thế.` | GIF quá lớn hoặc server không nhận | Tool tự động dùng ảnh tĩnh thay thế (vẫn OK) |
 
@@ -110,8 +133,8 @@ Khi nhấn tải lên, bạn sẽ thấy các bước sau trong log:
 | Thông báo | Nguyên nhân | Cách xử lý |
 |---|---|---|
 | `❌ Áp dụng thất bại: -1999` | Quá nhiều request, bị giới hạn tần suất | Đợi 1–2 phút rồi thử lại |
-| `❌ Áp dụng thất bại: -5001` | Lỗi xác thực động (Sign Bridge chưa chạy) | Hệ thống tự xử lý; nếu vẫn lỗi, thử lấy token mới |
-| `⚠️  Lưu khung ảnh không thuận lợi` | Lỗi nhỏ khi lưu cấu hình, không ảnh hưởng kết quả | Bỏ qua, ảnh vẫn được áp dụng bình thường |
+| `❌ Áp dụng thất bại: -5001` | Lỗi xác thực động (Sign Bridge) | Hệ thống tự xử lý; nếu vẫn lỗi, thử lấy token mới |
+| `⚠️  Lưu khung ảnh không thuận lợi` | Lỗi nhỏ khi lưu cấu hình | Bỏ qua, ảnh vẫn được áp dụng bình thường |
 
 ---
 
@@ -119,7 +142,7 @@ Khi nhấn tải lên, bạn sẽ thấy các bước sau trong log:
 
 | Thông báo | Nguyên nhân | Cách xử lý |
 |---|---|---|
-| `❌ Lỗi xử lý ảnh! File ảnh bị hỏng hoặc định dạng không được hỗ trợ.` | File lỗi hoặc sai định dạng | Dùng file JPG, PNG, hoặc WEBP hợp lệ |
+| `❌ Lỗi xử lý ảnh! File ảnh bị hỏng hoặc định dạng không được hỗ trợ.` | File lỗi hoặc sai định dạng | Dùng file JPG, PNG, hoặc WEBP |
 | Không thấy crop tool sau khi chọn ảnh | File quá lớn hoặc định dạng lạ | Chuyển sang JPG/PNG trước khi upload |
 
 **Định dạng hỗ trợ:** `JPG` · `PNG` · `WEBP` · `GIF` · `MP4`
@@ -132,7 +155,6 @@ Khi nhấn tải lên, bạn sẽ thấy các bước sau trong log:
 |---|---|---|
 | `Lỗi kết nối server` | Server web bị ngắt hoặc quá tải | Thử lại sau vài giây |
 | `❌ Đã xảy ra lỗi không mong muốn: ...` | Lỗi không xác định | Chụp màn hình log và gửi cho admin |
-| Màn hình log trống, không có gì | Kết nối WebSocket bị ngắt | Tải lại trang và thử lại |
 
 ---
 
@@ -177,13 +199,14 @@ python sign_bridge_py.py
 
 ```
 AOV/
-├── app.py              # Flask web server chính
+├── app.py              # Flask web server chính + account API
 ├── loadtran.py         # Logic xử lý upload ảnh
+├── accounts.json       # Tài khoản đã lưu (tự tạo, không commit git)
 ├── sign_bridge.js      # Sign Bridge (Node.js)
 ├── sign_bridge_py.py   # Sign Bridge (Python)
 ├── requirements.txt    # Thư viện Python cần thiết
 ├── static/
-│   ├── script.js       # Frontend JavaScript
+│   ├── script.js       # Frontend JavaScript (account mgmt + upload)
 │   └── style.css       # Giao diện CSS
 ├── templates/
 │   └── index.html      # Trang web chính
@@ -194,10 +217,10 @@ AOV/
 
 ## 💡 Mẹo sử dụng
 
-- **Ảnh đẹp nhất:** Dùng ảnh dọc tỷ lệ 9:14 (ví dụ 1080×1680) để crop ít nhất
-- **Token nhanh nhất:** Mở Camp trong game → bắt ngay request đầu tiên
-- **Tránh lỗi -1999:** Không spam nhấn tải lên liên tục, đợi log hiển thị HOÀN THÀNH rồi mới thử lần tiếp theo
-- **Sau khi thành công:** Cần khởi động lại game hoặc vào trận mới để thấy ảnh mới
+- **Ảnh đẹp nhất:** Dùng ảnh dọc tỷ lệ 9:14 để crop ít nhất
+- **Nhiều tài khoản:** Lưu mỗi tài khoản với tên khác nhau (VD: "Nick chính", "Nick phụ")
+- **Tránh lỗi -1999:** Không spam nhấn tải lên liên tục
+- **Sau khi thành công:** Cần vào trận mới để thấy ảnh mới
 
 ---
 

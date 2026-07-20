@@ -4,9 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KGVN Load Tran - Web UI</title>
-    <!-- Cropper.js CSS -->
+    <meta name="description" content="Công cụ thay ảnh tải trận Liên Quân Mobile (AOV/KGVN) online, không cần cài phần mềm.">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
@@ -14,50 +13,97 @@
     <div class="container">
         <header>
             <h1>KGVN <span>Load Tran</span></h1>
-            <p>Thay ảnh load trận Liên Quân - Multi-Account Tool</p>
+            <p>Thay ảnh tải trận Liên Quân Mobile · Nhanh · Đơn giản</p>
         </header>
 
         <main>
-            <div class="card">
-                <h2>1. Nhập thông tin</h2>
-                <div class="form-group">
-                    <label for="token">Token (msdk-itopencodeparam)</label>
-                    <input type="text" id="token" placeholder="Nhập token tại đây..." required>
+            <!-- ===== PANEL: Tài khoản đã lưu ===== -->
+            <div class="card" id="savedAccountsCard">
+                <div class="card-header-row">
+                    <h2>👤 Tài khoản đã lưu</h2>
+                    <span class="account-count-badge" id="accountCountBadge">0/5</span>
                 </div>
-
-                <div class="form-group">
-                    <label for="mode">Chế độ</label>
-                    <select id="mode" class="form-control" style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-color); color: var(--text-color); margin-top: 8px;">
-                        <option value="playerimage">Ảnh Load Trận (Playerimage)</option>
-                        <option value="flowborn_marksman">Ảnh Nền Tướng Flowborn - Xạ thủ (Marksman)</option>
-                        <option value="flowborn_mage">Ảnh Nền Tướng Flowborn - Pháp sư (Mage)</option>
-                    </select>
-                </div>
-                
-                <div class="form-group checkbox-group">
-                    <input type="checkbox" id="isShare" checked>
-                    <label for="isShare">Quảng trường (Mọi người đều thấy)</label>
+                <div id="accountsList" class="accounts-grid"></div>
+                <div id="noAccountsMsg" class="no-accounts-msg">
+                    <span>📭</span>
+                    <p>Chưa có tài khoản nào được lưu.<br>Nhập token bên dưới và nhấn "Lưu tài khoản".</p>
                 </div>
             </div>
 
+            <!-- ===== PANEL: Nhập thông tin ===== -->
             <div class="card">
-                <h2>2. Chọn & Cắt ảnh</h2>
+                <h2>1. Nhập thông tin</h2>
+
+                <!-- Token input -->
+                <div class="form-group">
+                    <label for="token">Token <span class="label-hint">(msdk-itopencodeparam)</span></label>
+                    <div class="token-input-row">
+                        <input type="text" id="token" placeholder="Dán token từ game vào đây..." autocomplete="off">
+                        <button id="verifyBtn" class="verify-btn" title="Xác thực token" disabled>
+                            <span id="verifyBtnIcon">🔍</span>
+                        </button>
+                    </div>
+                    <div id="verifyStatus" class="verify-status" style="display:none"></div>
+                </div>
+
+                <!-- Account info preview (hiện sau khi xác thực) -->
+                <div id="accountPreview" class="account-preview" style="display:none">
+                    <div class="preview-poster-wrap">
+                        <img id="previewPosterImg" class="preview-poster" src="" alt="Ảnh tải trận hiện tại" style="display:none">
+                        <div id="previewPosterPlaceholder" class="preview-poster-placeholder">🎮</div>
+                    </div>
+                    <div class="preview-info">
+                        <div class="preview-uid-row">
+                            <span class="preview-uid-label">User ID:</span>
+                            <span id="previewUID" class="preview-uid-value">—</span>
+                        </div>
+                        <div class="preview-poster-label" id="previewPosterLabel">Chưa có ảnh tải trận</div>
+                    </div>
+                    <div class="preview-actions">
+                        <input type="text" id="accountNameInput" class="account-name-input" placeholder="Đặt tên tài khoản..." maxlength="20">
+                        <button id="saveAccountBtn" class="save-account-btn">💾 Lưu tài khoản</button>
+                    </div>
+                </div>
+
+                <!-- Chế độ -->
+                <div class="form-group">
+                    <label for="mode">Chế độ</label>
+                    <select id="mode" class="form-select">
+                        <option value="playerimage">🖼️ Ảnh Load Trận (Playerimage)</option>
+                        <option value="flowborn_marksman">⚔️ Flowborn - Xạ thủ (Marksman)</option>
+                        <option value="flowborn_mage">🔮 Flowborn - Pháp sư (Mage)</option>
+                    </select>
+                </div>
+
+                <!-- Quảng trường -->
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="isShare" checked>
+                    <label for="isShare">🌐 Quảng trường (Mọi người đều thấy)</label>
+                </div>
+            </div>
+
+            <!-- ===== PANEL: Chọn & Cắt ảnh ===== -->
+            <div class="card">
+                <h2>2. Chọn &amp; Cắt ảnh</h2>
                 <div class="form-group">
                     <label class="file-upload-btn" for="imageInput">
                         <span>📷 Chọn ảnh từ thiết bị</span>
+                        <small>JPG · PNG · WEBP · GIF</small>
                     </label>
-                    <input type="file" id="imageInput" accept="image/png, image/jpeg, image/webp, image/gif" style="display: none;">
+                    <input type="file" id="imageInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none">
                 </div>
 
-                <div class="cropper-container" id="cropperWrapper" style="display: none;">
+                <div class="cropper-container" id="cropperWrapper" style="display:none">
                     <div class="img-container">
                         <img id="image" src="">
                     </div>
                 </div>
             </div>
 
-            <button id="uploadBtn" class="primary-btn" disabled>Tải lên & Xử lý</button>
+            <!-- ===== Upload Button ===== -->
+            <button id="uploadBtn" class="primary-btn" disabled>📤 Tải lên &amp; Xử lý</button>
 
+            <!-- ===== PANEL: Tiến trình ===== -->
             <div class="card log-card">
                 <h2>3. Tiến trình xử lý</h2>
                 <div id="logBox" class="terminal-log">
@@ -67,7 +113,18 @@
         </main>
     </div>
 
-    <!-- Cropper.js JS -->
+    <!-- Rename modal -->
+    <div id="renameModal" class="modal-overlay" style="display:none">
+        <div class="modal-box">
+            <h3>Đổi tên tài khoản</h3>
+            <input type="text" id="renameInput" class="modal-input" placeholder="Nhập tên mới..." maxlength="20">
+            <div class="modal-actions">
+                <button id="renameCancelBtn" class="modal-btn-cancel">Hủy</button>
+                <button id="renameConfirmBtn" class="modal-btn-confirm">Lưu</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <script src="/static/script.js"></script>
 </body>
