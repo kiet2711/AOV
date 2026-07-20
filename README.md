@@ -3,7 +3,7 @@
 > **Web:** https://aov-pamo.onrender.com
 
 Công cụ web giúp bạn dễ dàng thay **ảnh tải trận** (Load Screen) và **Flowborn** trong game Liên Quân Mobile (AOV/KGVN) chỉ qua trình duyệt. Hỗ trợ lưu và chuyển đổi nhanh giữa nhiều tài khoản.
-
+Key: 405536
 ---
 
 ## 🚀 Tính năng
