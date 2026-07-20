@@ -497,14 +497,43 @@ def get_account_info(auth_token):
     # 2. Lay anh poster hien tai (neu co)
     current_poster_url = None
     try:
-        r2 = api_post(sess, "/api/game/poster/playerimage/getpostereditinfo",
-                      {}, auth_token, fallback_token=auth_token)
-        if r2.get("code") == 0 and r2.get("data", {}).get("picInfo"):
-            sticker_list = r2["data"]["picInfo"].get("stickerList", [])
+        # Goi truc tiep khong dung api_post vi api_post goi raise_for_status()
+        # API co the tra 403 nhung van co JSON body chua data poster
+        hdrs = dict(FIXED_HEADERS)
+        hdrs["content-type"] = "application/json"
+        hdrs["traceparent"]  = gen_traceparent()
+        hdrs["priority"]     = "u=1, i"
+        endpoint2 = "/api/game/poster/playerimage/getpostereditinfo"
+        hdrs["msdk-itopencodeparam"] = get_dynamic_encodeparam(endpoint2, {}, auth_token)
+        resp2 = sess.post(API_BASE + endpoint2, json={}, headers=hdrs, timeout=25)
+        try:
+            r2 = resp2.json()
+        except Exception:
+            r2 = {}
+        import sys
+        print(f"[DEBUG getpostereditinfo] http={resp2.status_code} code={r2.get('code')} data_keys={list(r2.get('data', {}).keys())}", file=sys.stderr, flush=True)
+        if r2.get("data") and r2["data"].get("picInfo"):
+            pi = r2["data"]["picInfo"]
+            print(f"[DEBUG picInfo] keys={list(pi.keys())}", file=sys.stderr, flush=True)
+            # Thu lay tu stickerList truoc
+            sticker_list = pi.get("stickerList", [])
             if sticker_list:
-                current_poster_url = sticker_list[0].get("picUrl", "")
-    except Exception:
-        pass
+                url_candidate = sticker_list[0].get("picUrl") or ""
+                if url_candidate:
+                    current_poster_url = url_candidate
+            # Neu stickerList khong co, thu lay tu bg.picUrl
+            if not current_poster_url:
+                bg_url = pi.get("bg", {}).get("picUrl") or ""
+                if bg_url and bg_url.startswith("http"):
+                    current_poster_url = bg_url
+        elif r2.get("data"):
+            # Truong hop khong co picInfo, thu doc picUrl truc tiep tu data
+            direct_url = r2["data"].get("picUrl") or ""
+            if direct_url and direct_url.startswith("http"):
+                current_poster_url = direct_url
+    except Exception as ex:
+        import sys
+        print(f"[DEBUG getpostereditinfo ERROR] {ex}", file=sys.stderr, flush=True)
 
     return {
         "token_valid": True,
@@ -513,6 +542,8 @@ def get_account_info(auth_token):
         "current_poster_url": current_poster_url,
         "user_path": user_path,
     }
+
+
 
 
 # =============================================================================
