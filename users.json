@@ -1,0 +1,8 @@
+{
+  "users": [
+    {
+      "username": "kiet123z",
+      "password_hash": "scrypt:32768:8:1$8mICBHeDFWFv8VGo$8b3bdf2fb764c4eda783440cad63636dd5a4f168a3ecc218febac296414e2f8dd6d52cfe6e926581b60e405263e0aaafdb2224d8234f3574fb2d6374d76d85b0"
+    }
+  ]
+}

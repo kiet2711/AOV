@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng ký - KGVN Load Tran</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #e0eaff 0%, #f0f4ff 50%, #e8f5e9 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .page-wrapper {
+            width: 100%;
+            max-width: 440px;
+        }
+
+        /* Brand */
+        .brand {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .brand-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #3b82f6, #6366f1);
+            border-radius: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 12px;
+            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+        }
+        .brand h1 {
+            font-size: 22px;
+            font-weight: 800;
+            color: #1e293b;
+            letter-spacing: -0.5px;
+        }
+        .brand h1 span {
+            color: #3b82f6;
+        }
+        .brand p {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        /* Card */
+        .card {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 36px 32px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.04), 0 20px 60px rgba(0,0,0,0.08);
+            border: 1px solid rgba(255,255,255,0.8);
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #0f172a;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        .card-subtitle {
+            font-size: 14px;
+            color: #94a3b8;
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        /* Key hint box */
+        .key-hint {
+            background: linear-gradient(135deg, #eff6ff, #f0fdf4);
+            border: 1px solid #bfdbfe;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 13px;
+            color: #3b82f6;
+            margin-bottom: 22px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 7px;
+        }
+        .input-wrapper {
+            position: relative;
+        }
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+            color: #94a3b8;
+            pointer-events: none;
+        }
+        .form-input {
+            width: 100%;
+            padding: 13px 14px 13px 42px;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 12px;
+            color: #1e293b;
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            outline: none;
+            transition: all 0.25s ease;
+        }
+        .form-input:focus {
+            border-color: #3b82f6;
+            background: #fff;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+        }
+        .form-input::placeholder {
+            color: #cbd5e1;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #3b82f6, #6366f1);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 16px rgba(99, 102, 241, 0.3);
+            margin-top: 8px;
+            letter-spacing: 0.2px;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        /* Alerts */
+        .alert-error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .alert-success {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+            border-radius: 10px;
+            padding: 16px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            text-align: center;
+            line-height: 1.6;
+        }
+        .alert-success .success-icon {
+            font-size: 28px;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .alert-success a {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 10px 24px;
+            background: #16a34a;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .alert-success a:hover {
+            background: #15803d;
+        }
+
+        /* Divider */
+        .divider {
+            border: none;
+            border-top: 1px solid #f1f5f9;
+            margin: 24px 0 20px;
+        }
+
+        /* Footer */
+        .card-footer {
+            text-align: center;
+            font-size: 14px;
+            color: #64748b;
+        }
+        .card-footer a {
+            color: #3b82f6;
+            font-weight: 600;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .card-footer a:hover {
+            color: #2563eb;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-wrapper">
+        <div class="brand">
+            <div class="brand-icon">🎮</div>
+            <h1>KGVN <span>Load Tran</span></h1>
+            <p>Công cụ thay ảnh tải trận AOV</p>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">Tạo tài khoản mới ✨</h2>
+            <p class="card-subtitle">Điền thông tin bên dưới để đăng ký</p>
+
+            {% if error %}
+            <div class="alert-error">
+                <span>⚠️</span> {{ error }}
+            </div>
+            {% endif %}
+
+            {% if success %}
+            <div class="alert-success">
+                <span class="success-icon">🎉</span>
+                {{ success }}
+                <br>
+                <a href="/login">Đăng nhập ngay →</a>
+            </div>
+            {% else %}
+
+            <div class="key-hint">
+                🔑 Bạn cần có <strong>Mã đăng ký</strong> để tạo tài khoản. Liên hệ Admin để lấy mã.
+            </div>
+
+            <form method="POST" action="/register">
+                <div class="form-group">
+                    <label class="form-label" for="reg_key">Mã đăng ký</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">🗝️</span>
+                        <input type="password" id="reg_key" name="reg_key" class="form-input"
+                               placeholder="Nhập mã đăng ký" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="username">Tên đăng nhập</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">👤</span>
+                        <input type="text" id="username" name="username" class="form-input"
+                               placeholder="Chọn tên đăng nhập" required autocomplete="off">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Mật khẩu</label>
+                    <div class="input-wrapper">
+                        <span class="input-icon">🔒</span>
+                        <input type="password" id="password" name="password" class="form-input"
+                               placeholder="Đặt mật khẩu" required autocomplete="new-password">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary">Tạo tài khoản →</button>
+            </form>
+
+            {% endif %}
+
+            <hr class="divider">
+
+            <div class="card-footer">
+                Đã có tài khoản? <a href="/login">Đăng nhập</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

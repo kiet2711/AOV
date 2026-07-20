@@ -3,18 +3,48 @@ import json
 import time
 import uuid
 import threading
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 import loadtran
 from pathlib import Path
 
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY', 'a_very_secret_key_12345')
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 ACCOUNTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'accounts.json')
+USERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.json')
 MAX_ACCOUNTS = 5
 TOKEN_EXPIRE_SECONDS = 4 * 3600   # 4 tieng
+
+# =============================================================================
+# Users management helpers
+# =============================================================================
+
+def _load_users():
+    if not os.path.exists(USERS_FILE):
+        return []
+    try:
+        with open(USERS_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            return data.get('users', [])
+    except Exception:
+        return []
+
+def _save_users(users):
+    with open(USERS_FILE, 'w', encoding='utf-8') as f:
+        json.dump({'users': users}, f, ensure_ascii=False, indent=2)
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'username' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 # =============================================================================
@@ -55,15 +85,69 @@ def _get_token_status(saved_at):
 # =============================================================================
 
 @app.route('/')
+@login_required
 def index():
-    return render_template('index.html')
+    return render_template('index.html', username=session['username'])
 
+# =============================================================================
+# Routes — Authentication
+# =============================================================================
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        
+        users = _load_users()
+        user = next((u for u in users if u['username'] == username), None)
+        
+        if user and check_password_hash(user['password_hash'], password):
+            session['username'] = username
+            return redirect(url_for('index'))
+        else:
+            return render_template('login.html', error='Tên đăng nhập hoặc mật khẩu không đúng.')
+            
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.pop('username', None)
+    return redirect(url_for('login'))
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        reg_key = request.form.get('reg_key', '').strip()
+        
+        if reg_key != '405536':
+            return render_template('register.html', error='Mã đăng ký không chính xác.')
+            
+        if not username or not password:
+            return render_template('register.html', error='Vui lòng nhập đầy đủ thông tin.')
+            
+        users = _load_users()
+        if any(u['username'] == username for u in users):
+            return render_template('register.html', error='Tên đăng nhập đã tồn tại.')
+            
+        users.append({
+            'username': username,
+            'password_hash': generate_password_hash(password)
+        })
+        _save_users(users)
+        
+        return render_template('register.html', success=f'Đã tạo tài khoản "{username}" thành công. Bạn có thể sử dụng tài khoản này để đăng nhập.')
+        
+    return render_template('register.html')
 
 # =============================================================================
 # Routes — Account Management API
 # =============================================================================
 
 @app.route('/api/verify_token', methods=['POST'])
+@login_required
 def verify_token():
     data = request.get_json()
     token = (data or {}).get('token', '').strip()
@@ -88,14 +172,19 @@ def verify_token():
 
 
 @app.route('/api/accounts', methods=['GET'])
+@login_required
 def get_accounts():
     accounts = _load_accounts()
     accounts = _cleanup_expired(accounts)
+    
+    current_user = session['username']
+    user_accounts = [a for a in accounts if a.get('owner_username') == current_user]
+    
     _save_accounts(accounts)
 
     now = time.time()
     result = []
-    for a in accounts:
+    for a in user_accounts:
         result.append({
             'id': a['id'],
             'name': a['name'],
@@ -109,6 +198,7 @@ def get_accounts():
 
 
 @app.route('/api/accounts', methods=['POST'])
+@login_required
 def save_account():
     data = request.get_json()
     token = (data or {}).get('token', '').strip()
@@ -123,9 +213,10 @@ def save_account():
 
     accounts = _load_accounts()
     accounts = _cleanup_expired(accounts)
+    current_user = session['username']
 
-    # Neu da co account voi cung user_id -> cap nhat
-    existing = next((a for a in accounts if a.get('user_id') == user_id), None)
+    # Neu da co account voi cung user_id cua user nay -> cap nhat
+    existing = next((a for a in accounts if a.get('user_id') == user_id and a.get('owner_username') == current_user), None)
     if existing:
         existing['token'] = token
         existing['name'] = name or existing['name']
@@ -135,15 +226,18 @@ def save_account():
         _save_accounts(accounts)
         return jsonify({'success': True, 'id': existing['id'], 'updated': True})
 
-    # Kiem tra gioi han
-    if len(accounts) >= MAX_ACCOUNTS:
-        # Xoa account cu nhat
-        accounts.sort(key=lambda a: a['saved_at'])
-        accounts.pop(0)
+    # Kiem tra gioi han cho user nay
+    user_accounts = [a for a in accounts if a.get('owner_username') == current_user]
+    if len(user_accounts) >= MAX_ACCOUNTS:
+        # Xoa account cu nhat cua user nay
+        user_accounts.sort(key=lambda a: a['saved_at'])
+        oldest_id = user_accounts[0]['id']
+        accounts = [a for a in accounts if a['id'] != oldest_id]
 
     new_account = {
         'id': str(uuid.uuid4()),
-        'name': name or f'Tài khoản {len(accounts) + 1}',
+        'owner_username': current_user,
+        'name': name or f'Tài khoản {len(user_accounts) + 1}',
         'token': token,
         'user_id': user_id,
         'short_id': short_id,
@@ -157,10 +251,12 @@ def save_account():
 
 
 @app.route('/api/accounts/<account_id>', methods=['DELETE'])
+@login_required
 def delete_account(account_id):
     accounts = _load_accounts()
+    current_user = session['username']
     before = len(accounts)
-    accounts = [a for a in accounts if a['id'] != account_id]
+    accounts = [a for a in accounts if not (a['id'] == account_id and a.get('owner_username') == current_user)]
     if len(accounts) == before:
         return jsonify({'success': False, 'message': 'Không tìm thấy tài khoản'}), 404
     _save_accounts(accounts)
@@ -168,23 +264,27 @@ def delete_account(account_id):
 
 
 @app.route('/api/accounts/<account_id>/token', methods=['GET'])
+@login_required
 def get_account_token(account_id):
     """Tra ve token de dien vao o nhap (khong lo thong tin toan bo)"""
     accounts = _load_accounts()
-    account = next((a for a in accounts if a['id'] == account_id), None)
+    current_user = session['username']
+    account = next((a for a in accounts if a['id'] == account_id and a.get('owner_username') == current_user), None)
     if not account:
         return jsonify({'success': False}), 404
     return jsonify({'success': True, 'token': account['token']})
 
 
 @app.route('/api/accounts/<account_id>/rename', methods=['POST'])
+@login_required
 def rename_account(account_id):
     data = request.get_json()
     new_name = (data or {}).get('name', '').strip()
     if not new_name:
         return jsonify({'success': False, 'message': 'Tên không được để trống'}), 400
     accounts = _load_accounts()
-    account = next((a for a in accounts if a['id'] == account_id), None)
+    current_user = session['username']
+    account = next((a for a in accounts if a['id'] == account_id and a.get('owner_username') == current_user), None)
     if not account:
         return jsonify({'success': False}), 404
     account['name'] = new_name
@@ -197,6 +297,7 @@ def rename_account(account_id):
 # =============================================================================
 
 @app.route('/upload', methods=['POST'])
+@login_required
 def upload():
     token = request.form.get('token')
     is_share = request.form.get('is_share') == 'true'
@@ -260,6 +361,7 @@ def upload():
 
 
 @app.route('/logs')
+@login_required
 def get_logs():
     logs = list(loadtran.log_buffer)
     loadtran.log_buffer.clear()
