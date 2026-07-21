@@ -1,0 +1,5 @@
+__pycache__/
+uploads/
+accounts.json
+users.json
+*.pyc

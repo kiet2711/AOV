@@ -675,8 +675,15 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
         time.sleep(0.3)
 
         # C. Upload ảnh lên Cloud
-        ck   = "{}{}{}.png".format(user_path, file_prefix, pid)
-        ck_l = "{}{}{}_large.png".format(user_path, file_prefix, pid)
+        ck_path = creds1.get("path", "")
+        suffix = "{}{}.png".format(file_prefix, pid)
+        if ck_path and ck_path.endswith(suffix):
+            actual_user_path = ck_path[:-len(suffix)]
+        else:
+            actual_user_path = user_path
+
+        ck   = "{}{}{}.png".format(actual_user_path, file_prefix, pid)
+        ck_l = "{}{}{}_large.png".format(actual_user_path, file_prefix, pid)
 
         def mkhdr(key, buf, creds_in):
             return {
@@ -700,7 +707,7 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
         sticker_url = UGC_CDN_BASE + ck
 
         if anim_b is not None and anim_ext:
-            ck_a = "{}{}{}.{}".format(user_path, file_prefix, pid, anim_ext)
+            ck_a = "{}{}{}.{}".format(actual_user_path, file_prefix, pid, anim_ext)
             creds3 = get_creds("{}{}.{}".format(file_prefix, pid, anim_ext)) or creds1
             tprint("{} ☁️  Đang tải GIF động lên server ({:,} KB)...".format(step_tag, len(anim_b)//1024))
             r_a  = cos_put(session, "https://"+COS_HOST+ck_a,
@@ -748,14 +755,14 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
                     },
                     "stickerList": []
                 },
-                "picUrl": UGC_CDN_BASE + user_path
+                "picUrl": UGC_CDN_BASE + actual_user_path
             }
         else:
             payload = {
                 "posterId": pid,
                 "isApply": True,
                 "isShare": is_share,
-                "picUrl": UGC_CDN_BASE+user_path,
+                "picUrl": UGC_CDN_BASE + actual_user_path,
                 "picInfo": pi
             }
 
