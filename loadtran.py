@@ -532,7 +532,7 @@ def get_account_info(auth_token):
                     current_poster_url = url_candidate
             # Neu stickerList khong co, thu lay tu bg.picUrl
             if not current_poster_url:
-                bg_url = pi.get("bg", {}).get("picUrl") or ""
+                bg_url = (pi.get("bg") or {}).get("picUrl") or ""
                 if bg_url and bg_url.startswith("http"):
                     current_poster_url = bg_url
         elif r2.get("data"):
@@ -581,7 +581,7 @@ def get_account_info(auth_token):
 # =============================================================================
 
 def build_pic_info(pic_info_raw, sticker_url):
-    bg = pic_info_raw.get("bg", {})
+    bg = pic_info_raw.get("bg") or {}
     return {
         "bg": {
             "id":     bg.get("id",     PI_BG_ID),
@@ -764,7 +764,7 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
                       auth_token, retry_on_code1=True, max_retries=4, delay=4.0,
                       fallback_token=auth_token)
 
-        unavail = rp.get("data", {}).get("unavailableResources", [])
+        unavail = (rp.get("data") or {}).get("unavailableResources", [])
         kind    = "GIF động" if anim_b else "Ảnh tĩnh"
 
         if rp.get("code") == 0 and not unavail:
@@ -806,7 +806,7 @@ def acc_worker(acc, media_list, is_share, acc_results, dry_run=False, mode="play
         tprint("🔍 Đang lấy thông tin khung ảnh hiện tại của bạn...")
         r = api_post(sess, "/api/game/poster/playerimage/getpostereditinfo",
                      {}, auth_token, fallback_token=auth_token)
-        if r.get("code") == 0 and r.get("data", {}).get("picInfo"):
+        if r.get("code") == 0 and (r.get("data") or {}).get("picInfo"):
             pic_info_raw = r["data"]["picInfo"]
             tprint("✅ Lấy thông tin khung ảnh thành công!")
         else:

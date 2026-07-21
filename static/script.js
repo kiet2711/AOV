@@ -303,12 +303,17 @@ document.addEventListener('DOMContentLoaded', function () {
                         c.classList.toggle('active-card', c.dataset.id === existing.id);
                     });
                 } else {
-                    accountNameInput.value = '';
+                    if (!accountNameInput.value.trim()) {
+                        accountNameInput.value = 'Tài khoản ' + ((accData.accounts || []).length + 1);
+                    }
                 }
 
                 accountPreview.style.display = 'flex';
                 saveAccountBtn.disabled = false;
                 saveAccountBtn.textContent = '💾 Lưu tài khoản';
+
+                // Tự động lưu tài khoản
+                saveAccount();
 
             } else {
                 verifyStatus.className = 'verify-status error';
