@@ -421,6 +421,7 @@ def upload():
     token = request.form.get('token')
     is_share = request.form.get('is_share') == 'true'
     mode = request.form.get('mode', 'playerimage')
+    gender = int(request.form.get('gender', '1'))
     file = request.files.get('file')
 
     if not token or not file:
@@ -459,7 +460,7 @@ def upload():
             results = {}
             share_label = "Quảng trường (mọi người thấy)" if is_share else "Chỉ mình tôi"
             loadtran.tprint(f"📤 Bắt đầu tải lên... (Hiển thị: {share_label})")
-            loadtran.acc_worker(acc, [media_info], is_share, results, dry_run=False, mode=mode)
+            loadtran.acc_worker(acc, [media_info], is_share, results, dry_run=False, mode=mode, gender=gender)
 
             loadtran.tprint("== HOÀN THÀNH ==")
         except Exception as e:

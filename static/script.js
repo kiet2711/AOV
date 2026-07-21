@@ -225,6 +225,19 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // ════════════════════════════════════════
+    //  MODE / GENDER TOGGLE
+    // ════════════════════════════════════════
+    const modeSelect = document.getElementById('mode');
+    const genderGroup = document.getElementById('genderGroup');
+    modeSelect.addEventListener('change', () => {
+        if (modeSelect.value.startsWith('flowborn_')) {
+            genderGroup.style.display = 'block';
+        } else {
+            genderGroup.style.display = 'none';
+        }
+    });
+
+    // ════════════════════════════════════════
     //  TOKEN VERIFY
     // ════════════════════════════════════════
 
@@ -388,6 +401,7 @@ document.addEventListener('DOMContentLoaded', function () {
             formData.append('token', tokenInput.value.trim());
             formData.append('is_share', isShareInput.checked);
             formData.append('mode', document.getElementById('mode').value);
+            formData.append('gender', document.getElementById('flowbornGender').value);
 
             fetch('/upload', { method: 'POST', body: formData })
                 .then(r => r.json())

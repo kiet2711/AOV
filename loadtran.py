@@ -516,13 +516,8 @@ def get_account_info(auth_token):
             r2 = resp2.json()
         except Exception:
             r2 = {}
-        import sys
-        print(f"[DEBUG getpostereditinfo] http={resp2.status_code} code={r2.get('code')} data_keys={list(r2.get('data', {}).keys())}", file=sys.stderr, flush=True)
         if r2.get("data") and r2["data"].get("picInfo"):
             pi = r2["data"]["picInfo"]
-            print(f"[DEBUG picInfo] keys={list(pi.keys())}", file=sys.stderr, flush=True)
-            import json
-            print(f"[DEBUG picInfo full] {json.dumps(pi, ensure_ascii=False)[:3000]}", file=sys.stderr, flush=True)
             # Thu lay tu stickerList truoc
             sticker_list = pi.get("stickerList", [])
             if sticker_list:
@@ -541,29 +536,23 @@ def get_account_info(auth_token):
             if direct_url and direct_url.startswith("http"):
                 current_poster_url = direct_url
                 
-        # DEBUG: THU GOI GETPOSTER XEM CO LAY DUOC ANH DA APPLY KHONG
         endpoint_getposter = "/api/game/poster/playerimage/getposter"
         hdrs["msdk-itopencodeparam"] = get_dynamic_encodeparam(endpoint_getposter, {}, auth_token)
         resp_gp = sess.post(API_BASE + endpoint_getposter, json={}, headers=hdrs, timeout=25)
         try:
             r_gp = resp_gp.json()
-            import json
-            print(f"[DEBUG getposter] {json.dumps(r_gp, ensure_ascii=False)[:3000]}", file=sys.stderr, flush=True)
-            # Uu tien lay tu getposter neu getpostereditinfo la mac dinh
             if r_gp.get("code") == 0 and r_gp.get("data") and r_gp["data"].get("picInfo"):
                 pi_gp = r_gp["data"]["picInfo"]
                 sl_gp = pi_gp.get("stickerList", [])
                 if sl_gp:
                     url_gp = sl_gp[-1].get("picUrl")
                     if url_gp:
-                        print(f"[DEBUG] FOUND POSTER IN GETPOSTER: {url_gp}", file=sys.stderr, flush=True)
                         current_poster_url = url_gp
-        except Exception as e:
-            print(f"[DEBUG getposter error] {e}", file=sys.stderr, flush=True)
+        except Exception:
+            pass
             
-    except Exception as ex:
-        import sys
-        print(f"[DEBUG getpostereditinfo ERROR] {ex}", file=sys.stderr, flush=True)
+    except Exception:
+        pass
 
     return {
         "token_valid": True,
@@ -608,7 +597,7 @@ def build_pic_info(pic_info_raw, sticker_url):
 # =============================================================================
 
 def poster_worker(idx, acc_lbl, auth_token, user_path,
-                  media, pic_info_raw, is_share, results, dry_run=False, mode="playerimage"):
+                  media, pic_info_raw, is_share, results, dry_run=False, mode="playerimage", gender=1):
     session = make_session()
     png_b    = media["png_bytes"]
     anim_b   = media["anim_bytes"]
@@ -622,19 +611,29 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
     scene_name = "FlowbornPoster" if is_flowborn else "PlayerimagePoster"
 
     if mode == "flowborn_marksman":
-        file_prefix = "5/1/"
+        file_prefix = f"5/{gender}/"
         mainJob = 5
-        bg_id = "36"
-        bg_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/HhwhCACm.jpg"
-        baseInfo_id = "37"
-        baseInfo_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/y0MLqdvn.png"
+        bg_id = "30"
+        bg_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/4uxOQChv.png"
+        skinColor = 1
+        if gender == 1:
+            baseInfo_id = "31"
+            baseInfo_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/QQD3ebSX.png"
+        else:
+            baseInfo_id = "32"
+            baseInfo_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/Pd7zTH2f.png"
     elif mode == "flowborn_mage":
-        file_prefix = "4/1/"
+        file_prefix = f"4/{gender}/"
         mainJob = 4
         bg_id = "30"
         bg_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/4uxOQChv.png"
-        baseInfo_id = "67"
-        baseInfo_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/FXolJdyY.png"
+        skinColor = 1
+        if gender == 1:
+            baseInfo_id = "61"
+            baseInfo_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/epf8os8a.png"
+        else:
+            baseInfo_id = "62"
+            baseInfo_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/5fXAjyuq.png"
     else:
         file_prefix = "0/1/"
         mainJob = 0
@@ -642,6 +641,8 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
         bg_picUrl = ""
         baseInfo_id = ""
         baseInfo_picUrl = ""
+        # gender is already passed in
+        skinColor = 1
 
     if dry_run:
         tprint("{} [DRY RUN] Kiểm tra xong - không thực hiện tải lên ({:,}B)".format(step_tag, len(png_b)))
@@ -736,6 +737,14 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
         # E. Áp dụng poster
         tprint("{} 🔄 Đang áp dụng ảnh tải trận vào tài khoản...".format(step_tag))
         if is_flowborn:
+            if pic_info_raw:
+                bg_info = pic_info_raw.get("bg") or {}
+                bg_id = bg_info.get("id", bg_id)
+                bg_picUrl = bg_info.get("picUrl", bg_picUrl)
+                base_info = pic_info_raw.get("baseInfo") or {}
+                baseInfo_id = base_info.get("id", baseInfo_id)
+                baseInfo_picUrl = base_info.get("picUrl", baseInfo_picUrl)
+
             payload = {
                 "posterId": pid,
                 "isApply": True,
@@ -748,10 +757,10 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
                     },
                     "baseInfo": {
                         "id": baseInfo_id,
-                        "gender": 2,
+                        "gender": gender,
                         "mainJob": mainJob,
                         "picUrl": baseInfo_picUrl,
-                        "skinColor": 2
+                        "skinColor": skinColor
                     },
                     "stickerList": []
                 },
@@ -793,7 +802,7 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
 # ACC WORKER
 # =============================================================================
 
-def acc_worker(acc, media_list, is_share, acc_results, dry_run=False, mode="playerimage"):
+def acc_worker(acc, media_list, is_share, acc_results, dry_run=False, mode="playerimage", gender=1):
     lbl = acc["label"]
     tprint("\n" + sep(62, "=", C.CYAN))
     tprint("{}  BỮT ĐẦU  {}{}".format(C.CYAN+C.BOLD, lbl, C.RESET))
@@ -833,7 +842,7 @@ def acc_worker(acc, media_list, is_share, acc_results, dry_run=False, mode="play
         t = threading.Thread(
             target=poster_worker,
             args=(i, lbl, auth_token, user_path, m, pic_info_raw, is_share, results),
-            kwargs={"dry_run": dry_run, "mode": mode},
+            kwargs={"dry_run": dry_run, "mode": mode, "gender": gender},
             daemon=True,
         )
         threads.append(t)
