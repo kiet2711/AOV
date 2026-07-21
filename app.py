@@ -283,7 +283,6 @@ def save_account():
             existing.name = name or existing.name
             existing.current_poster_url = current_poster_url
             existing.user_path = user_path
-            existing.saved_at = now
             db.session.commit()
             return jsonify({'success': True, 'id': existing.id, 'updated': True})
 
@@ -319,7 +318,6 @@ def save_account():
             existing['name'] = name or existing['name']
             existing['current_poster_url'] = current_poster_url
             existing['user_path'] = user_path
-            existing['saved_at'] = now
             _save_accounts(accounts)
             return jsonify({'success': True, 'id': existing['id'], 'updated': True})
             
