@@ -13,7 +13,11 @@
     <div class="container">
         <header style="position: relative;">
             <div class="user-info-bar" style="position: absolute; top: 0; right: 0; font-size: 14px; background: rgba(0,0,0,0.2); padding: 5px 10px; border-radius: 8px;">
-                <span>Xin chào, <b>{{ username }}</b></span> | <a href="/logout" style="color: #ff3b30; text-decoration: none; font-weight: 500;">Đăng xuất</a>
+                <span>Xin chào, <b>{{ username }}</b></span>
+                {% if username == 'admin' %}
+                | <a href="/admin" style="color: #0a84ff; text-decoration: none; font-weight: 500;">Trang quản trị</a>
+                {% endif %}
+                | <a href="/logout" style="color: #ff3b30; text-decoration: none; font-weight: 500;">Đăng xuất</a>
             </div>
             <h1>KGVN <span>Load Tran</span></h1>
             <p>Thay ảnh tải trận Liên Quân Mobile · Nhanh · Đơn giản</p>

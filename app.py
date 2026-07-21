@@ -138,6 +138,8 @@ def login():
         
         if user_info and check_password_hash(user_info['password_hash'], password):
             session['username'] = username
+            if username == 'admin':
+                return redirect(url_for('admin_dashboard'))
             return redirect(url_for('index'))
         else:
             return render_template('login.html', error='Tên đăng nhập hoặc mật khẩu không đúng.')

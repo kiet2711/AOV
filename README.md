@@ -1,4 +1,4 @@
-﻿# 🎮 AOV Load Tran - Công cụ thay ảnh tải trận AOV
+# 🎮 AOV Load Tran - Công cụ thay ảnh tải trận AOV
 
 > **Web:** https://aov-pamo.onrender.com
 
@@ -73,6 +73,15 @@ Token là mã xác thực tài khoản của bạn. Cách lấy:
 | 🔴 **Hết hạn** | Token > 2 giờ — Nên lấy token mới |
 
 > **Lưu ý:** Tài khoản tự động bị xóa sau **4 giờ** (token hết hiệu lực). Tối đa **5 tài khoản** lưu cùng lúc.
+
+---
+
+## 👑 Quản trị viên (Admin)
+
+Hệ thống cung cấp một trang quản trị riêng để quản lý người dùng và tài khoản game đã liên kết.
+- **Tài khoản mặc định:** Tên đăng nhập `admin` / Mật khẩu `admin`.
+- **Đăng nhập:** Sau khi đăng nhập bằng tài khoản `admin`, bạn sẽ được chuyển hướng thẳng tới trang **Admin Dashboard**.
+- **Tính năng:** Xem toàn bộ người dùng, quản lý tài khoản game, xem chi tiết Token của từng tài khoản, và xóa người dùng/tài khoản khi cần thiết.
 
 ---
 
