@@ -89,6 +89,14 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'username' not in session or session['username'] != 'admin':
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 def _get_token_status(saved_at):
     age = time.time() - saved_at
     if age < 3600:        # < 1 tieng
@@ -473,11 +481,120 @@ def get_logs():
     loadtran.log_buffer.clear()
     return jsonify({"logs": logs})
 
+# =============================================================================
+# Routes — Admin Dashboard
+# =============================================================================
+
+@app.route('/admin')
+@admin_required
+def admin_dashboard():
+    return render_template('admin.html', username=session['username'])
+
+@app.route('/api/admin/users', methods=['GET'])
+@admin_required
+def admin_get_users():
+    try:
+        users = User.query.all()
+        result = [{'id': u.id, 'username': u.username} for u in users]
+        return jsonify({'success': True, 'users': result})
+    except Exception as e:
+        print(f"[Fallback] DB Error on admin_get_users: {e}")
+        users = _load_users()
+        result = [{'id': i, 'username': u['username']} for i, u in enumerate(users)]
+        return jsonify({'success': True, 'users': result})
+
+@app.route('/api/admin/accounts', methods=['GET'])
+@admin_required
+def admin_get_accounts():
+    now = time.time()
+    try:
+        accounts = Account.query.order_by(Account.saved_at.desc()).all()
+        result = []
+        for a in accounts:
+            result.append({
+                'id': a.id,
+                'owner_username': a.owner_username,
+                'name': a.name,
+                'token': a.token,
+                'short_id': a.short_id,
+                'saved_at': a.saved_at,
+                'status': _get_token_status(a.saved_at)
+            })
+        return jsonify({'success': True, 'accounts': result})
+    except Exception as e:
+        print(f"[Fallback] DB Error on admin_get_accounts: {e}")
+        accounts = _load_accounts()
+        result = []
+        for a in accounts:
+            result.append({
+                'id': a['id'],
+                'owner_username': a.get('owner_username', 'unknown'),
+                'name': a['name'],
+                'token': a['token'],
+                'short_id': a.get('short_id', ''),
+                'saved_at': a['saved_at'],
+                'status': _get_token_status(a['saved_at'])
+            })
+        return jsonify({'success': True, 'accounts': result})
+
+@app.route('/api/admin/users/<username>', methods=['DELETE'])
+@admin_required
+def admin_delete_user(username):
+    if username == 'admin':
+        return jsonify({'success': False, 'message': 'Không thể xoá Admin'})
+    try:
+        user = User.query.filter_by(username=username).first()
+        if user:
+            # Optionally delete user's accounts too
+            Account.query.filter_by(owner_username=username).delete()
+            db.session.delete(user)
+            db.session.commit()
+            return jsonify({'success': True})
+        return jsonify({'success': False, 'message': 'Không tìm thấy user'})
+    except Exception as e:
+        print(f"[Fallback] DB Error on admin_delete_user: {e}")
+        users = _load_users()
+        users = [u for u in users if u['username'] != username]
+        _save_users(users)
+        accounts = _load_accounts()
+        accounts = [a for a in accounts if a.get('owner_username') != username]
+        _save_accounts(accounts)
+        return jsonify({'success': True})
+
+@app.route('/api/admin/accounts/<account_id>', methods=['DELETE'])
+@admin_required
+def admin_delete_account(account_id):
+    try:
+        account = Account.query.filter_by(id=account_id).first()
+        if account:
+            db.session.delete(account)
+            db.session.commit()
+            return jsonify({'success': True})
+        return jsonify({'success': False, 'message': 'Không tìm thấy tài khoản'})
+    except Exception as e:
+        print(f"[Fallback] DB Error on admin_delete_account: {e}")
+        accounts = _load_accounts()
+        accounts = [a for a in accounts if a['id'] != account_id]
+        _save_accounts(accounts)
+        return jsonify({'success': True})
+
 
 if __name__ == '__main__':
     try:
         with app.app_context():
             db.create_all()
+            # Tự động tạo user admin nếu chưa có
+            admin_user = User.query.filter_by(username='admin').first()
+            if not admin_user:
+                new_admin = User(username='admin', password_hash=generate_password_hash('admin'))
+                db.session.add(new_admin)
+                db.session.commit()
     except Exception as e:
         print(f"Failed to initialize database: {e}")
+        # Tự động tạo user admin trong json nếu cần
+        users = _load_users()
+        if not any(u['username'] == 'admin' for u in users):
+            users.append({'username': 'admin', 'password_hash': generate_password_hash('admin')})
+            _save_users(users)
+            
     app.run(debug=True, host='0.0.0.0', port=5000)

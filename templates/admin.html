@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - KGVN</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .admin-container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+        .admin-table { width: 100%; border-collapse: collapse; margin-top: 15px; color: #fff; background: rgba(255,255,255,0.03); border-radius: 8px; overflow: hidden; }
+        .admin-table th, .admin-table td { padding: 12px 15px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .admin-table th { background: rgba(0,0,0,0.3); font-weight: 600; color: #aaa; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
+        .admin-table tr:hover { background: rgba(255,255,255,0.05); }
+        .delete-btn { background: rgba(255,59,48,0.2); color: #ff3b30; border: 1px solid rgba(255,59,48,0.3); padding: 5px 10px; border-radius: 6px; cursor: pointer; transition: 0.2s; font-size: 13px; }
+        .delete-btn:hover { background: #ff3b30; color: #fff; }
+        .token-cell { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: #0a84ff; }
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center; }
+        .modal-content { background: #1c1c1e; padding: 20px; border-radius: 12px; max-width: 600px; width: 90%; border: 1px solid rgba(255,255,255,0.1); }
+        .modal textarea { width: 100%; height: 200px; background: #000; color: #0f0; border: 1px solid #333; padding: 10px; border-radius: 8px; font-family: monospace; margin-top: 10px; resize: none; word-break: break-all; }
+        .modal-close { margin-top: 15px; background: #0a84ff; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <header style="position: relative; margin-bottom: 30px;">
+            <div style="position: absolute; top: 0; right: 0; font-size: 14px; background: rgba(0,0,0,0.2); padding: 5px 10px; border-radius: 8px;">
+                <span>Admin: <b>{{ username }}</b></span> | <a href="/" style="color: #0a84ff; text-decoration: none; font-weight: 500; margin-right: 10px;">Về trang chủ</a> | <a href="/logout" style="color: #ff3b30; text-decoration: none; font-weight: 500;">Đăng xuất</a>
+            </div>
+            <h1>Admin <span>Dashboard</span></h1>
+        </header>
+
+        <div class="card" style="margin-bottom: 20px;">
+            <h2>👥 Quản lý Users</h2>
+            <table class="admin-table" id="usersTable">
+                <thead>
+                    <tr>
+                        <th>ID / DB ID</th>
+                        <th>Tên đăng nhập</th>
+                        <th style="width: 80px;">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody><tr><td colspan="3">Đang tải...</td></tr></tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>🎮 Quản lý Accounts</h2>
+            <table class="admin-table" id="accountsTable">
+                <thead>
+                    <tr>
+                        <th>ID Game</th>
+                        <th>Chủ sở hữu (User)</th>
+                        <th>Tên hiển thị</th>
+                        <th>Token (Nhấn để xem)</th>
+                        <th style="width: 80px;">Hành động</th>
+                    </tr>
+                </thead>
+                <tbody><tr><td colspan="5">Đang tải...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Token View Modal -->
+    <div id="tokenModal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; color: #fff;">Chi tiết Token</h3>
+            <textarea id="tokenText" readonly></textarea>
+            <div style="text-align: right;">
+                <button class="modal-close" onclick="document.getElementById('tokenModal').style.display='none'">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadUsers() {
+            try {
+                const res = await fetch('/api/admin/users');
+                const data = await res.json();
+                const tbody = document.querySelector('#usersTable tbody');
+                if (!data.success) {
+                    tbody.innerHTML = `<tr><td colspan="3">Lỗi: ${data.message}</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = '';
+                if(data.users.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="3">Không có user nào.</td></tr>`;
+                    return;
+                }
+                data.users.forEach(u => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${u.id}</td>
+                            <td>${u.username}</td>
+                            <td>
+                                <button class="delete-btn" onclick="deleteUser('${u.username}')">Xoá</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function loadAccounts() {
+            try {
+                const res = await fetch('/api/admin/accounts');
+                const data = await res.json();
+                const tbody = document.querySelector('#accountsTable tbody');
+                if (!data.success) {
+                    tbody.innerHTML = `<tr><td colspan="5">Lỗi: ${data.message}</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = '';
+                if(data.accounts.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5">Không có tài khoản nào.</td></tr>`;
+                    return;
+                }
+                data.accounts.forEach(a => {
+                    const tokenPreview = a.token ? a.token.substring(0, 15) + '...' : 'N/A';
+                    // We need to safely pass the token, which might contain quotes
+                    const encodedToken = encodeURIComponent(a.token);
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${a.short_id || 'N/A'}</td>
+                            <td>${a.owner_username}</td>
+                            <td>${a.name}</td>
+                            <td class="token-cell" onclick="showToken('${encodedToken}')" title="Nhấn để xem chi tiết">${tokenPreview}</td>
+                            <td>
+                                <button class="delete-btn" onclick="deleteAccount('${a.id}')">Xoá</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function deleteUser(username) {
+            if(!confirm('Bạn có chắc chắn muốn xoá user "' + username + '" và TOÀN BỘ tài khoản của họ không?')) return;
+            const res = await fetch('/api/admin/users/' + username, { method: 'DELETE' });
+            const data = await res.json();
+            if(data.success) {
+                loadUsers();
+                loadAccounts();
+            } else {
+                alert(data.message || 'Lỗi');
+            }
+        }
+
+        async function deleteAccount(accountId) {
+            if(!confirm('Bạn có chắc chắn muốn xoá tài khoản này không?')) return;
+            const res = await fetch('/api/admin/accounts/' + accountId, { method: 'DELETE' });
+            const data = await res.json();
+            if(data.success) {
+                loadAccounts();
+            } else {
+                alert(data.message || 'Lỗi');
+            }
+        }
+
+        function showToken(encodedToken) {
+            const token = decodeURIComponent(encodedToken);
+            document.getElementById('tokenText').value = token;
+            document.getElementById('tokenModal').style.display = 'flex';
+        }
+
+        // Initialize
+        loadUsers();
+        loadAccounts();
+    </script>
+</body>
+</html>
