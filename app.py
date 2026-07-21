@@ -156,10 +156,7 @@ def register():
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
-        reg_key = request.form.get('reg_key', '').strip()
-        
-        if reg_key != '405536':
-            return render_template('register.html', error='Mã đăng ký không chính xác.')
+
             
         if not username or not password:
             return render_template('register.html', error='Vui lòng nhập đầy đủ thông tin.')
