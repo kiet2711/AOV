@@ -25,7 +25,7 @@ ACCOUNTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'accoun
 USERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.json')
 
 MAX_ACCOUNTS = 5
-TOKEN_EXPIRE_SECONDS = 4 * 3600   # 4 tieng
+TOKEN_EXPIRE_SECONDS = 5 * 3600   # 5 tieng
 
 # =============================================================================
 # Database Models
