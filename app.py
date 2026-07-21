@@ -21,6 +21,9 @@ db = SQLAlchemy(app)
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+ACCOUNTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'accounts.json')
+USERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.json')
+
 MAX_ACCOUNTS = 5
 TOKEN_EXPIRE_SECONDS = 4 * 3600   # 4 tieng
 
@@ -47,8 +50,36 @@ class Account(db.Model):
     saved_at = db.Column(db.Float, nullable=False)
 
 # =============================================================================
-# Helpers
+# Helpers (JSON Fallback)
 # =============================================================================
+
+def _load_users():
+    if not os.path.exists(USERS_FILE):
+        return []
+    try:
+        with open(USERS_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            return data.get('users', [])
+    except Exception:
+        return []
+
+def _save_users(users):
+    with open(USERS_FILE, 'w', encoding='utf-8') as f:
+        json.dump({'users': users}, f, ensure_ascii=False, indent=2)
+
+def _load_accounts():
+    if not os.path.exists(ACCOUNTS_FILE):
+        return []
+    try:
+        with open(ACCOUNTS_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            return data.get('accounts', [])
+    except Exception:
+        return []
+
+def _save_accounts(accounts):
+    with open(ACCOUNTS_FILE, 'w', encoding='utf-8') as f:
+        json.dump({'accounts': accounts}, f, ensure_ascii=False, indent=2)
 
 def login_required(f):
     @wraps(f)
@@ -59,13 +90,12 @@ def login_required(f):
     return decorated_function
 
 def _get_token_status(saved_at):
-    """Tra ve: 'new' | 'old' | 'expired'"""
     age = time.time() - saved_at
     if age < 3600:        # < 1 tieng
         return 'new'
     elif age < 7200:      # 1-2 tieng
         return 'old'
-    else:                 # > 2 tieng (nhung chua bi xoa)
+    else:                 # > 2 tieng
         return 'expired'
 
 
@@ -88,9 +118,17 @@ def login():
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
         
-        user = User.query.filter_by(username=username).first()
+        user_info = None
+        try:
+            user = User.query.filter_by(username=username).first()
+            if user:
+                user_info = {'username': user.username, 'password_hash': user.password_hash}
+        except Exception as e:
+            print(f"[Fallback] DB Error on login: {e}")
+            users = _load_users()
+            user_info = next((u for u in users if u['username'] == username), None)
         
-        if user and check_password_hash(user.password_hash, password):
+        if user_info and check_password_hash(user_info['password_hash'], password):
             session['username'] = username
             return redirect(url_for('index'))
         else:
@@ -116,16 +154,23 @@ def register():
         if not username or not password:
             return render_template('register.html', error='Vui lòng nhập đầy đủ thông tin.')
             
-        existing_user = User.query.filter_by(username=username).first()
-        if existing_user:
-            return render_template('register.html', error='Tên đăng nhập đã tồn tại.')
-            
-        new_user = User(
-            username=username,
-            password_hash=generate_password_hash(password)
-        )
-        db.session.add(new_user)
-        db.session.commit()
+        password_hash = generate_password_hash(password)
+        try:
+            existing_user = User.query.filter_by(username=username).first()
+            if existing_user:
+                return render_template('register.html', error='Tên đăng nhập đã tồn tại.')
+                
+            new_user = User(username=username, password_hash=password_hash)
+            db.session.add(new_user)
+            db.session.commit()
+        except Exception as e:
+            print(f"[Fallback] DB Error on register: {e}")
+            users = _load_users()
+            if any(u['username'] == username for u in users):
+                return render_template('register.html', error='Tên đăng nhập đã tồn tại.')
+                
+            users.append({'username': username, 'password_hash': password_hash})
+            _save_users(users)
         
         return render_template('register.html', success=f'Đã tạo tài khoản "{username}" thành công. Bạn có thể sử dụng tài khoản này để đăng nhập.')
         
@@ -164,26 +209,44 @@ def verify_token():
 @login_required
 def get_accounts():
     now = time.time()
-    
-    # Cleanup expired accounts
-    Account.query.filter(Account.saved_at < now - TOKEN_EXPIRE_SECONDS).delete()
-    db.session.commit()
-    
     current_user = session['username']
-    user_accounts = Account.query.filter_by(owner_username=current_user).order_by(Account.saved_at).all()
-
-    result = []
-    for a in user_accounts:
-        result.append({
-            'id': a.id,
-            'name': a.name,
-            'short_id': a.short_id,
-            'current_poster_url': a.current_poster_url,
-            'saved_at': a.saved_at,
-            'status': _get_token_status(a.saved_at),
-            'age_minutes': int((now - a.saved_at) / 60),
-        })
-    return jsonify({'accounts': result})
+    
+    try:
+        Account.query.filter(Account.saved_at < now - TOKEN_EXPIRE_SECONDS).delete()
+        db.session.commit()
+        
+        user_accounts = Account.query.filter_by(owner_username=current_user).order_by(Account.saved_at).all()
+        result = []
+        for a in user_accounts:
+            result.append({
+                'id': a.id,
+                'name': a.name,
+                'short_id': a.short_id,
+                'current_poster_url': a.current_poster_url,
+                'saved_at': a.saved_at,
+                'status': _get_token_status(a.saved_at),
+                'age_minutes': int((now - a.saved_at) / 60),
+            })
+        return jsonify({'accounts': result})
+    except Exception as e:
+        print(f"[Fallback] DB Error on get_accounts: {e}")
+        accounts = _load_accounts()
+        accounts = [a for a in accounts if (now - a.get('saved_at', 0)) < TOKEN_EXPIRE_SECONDS]
+        _save_accounts(accounts)
+        
+        user_accounts = [a for a in accounts if a.get('owner_username') == current_user]
+        result = []
+        for a in user_accounts:
+            result.append({
+                'id': a['id'],
+                'name': a['name'],
+                'short_id': a.get('short_id'),
+                'current_poster_url': a.get('current_poster_url'),
+                'saved_at': a['saved_at'],
+                'status': _get_token_status(a['saved_at']),
+                'age_minutes': int((now - a['saved_at']) / 60),
+            })
+        return jsonify({'accounts': result})
 
 
 @app.route('/api/accounts', methods=['POST'])
@@ -203,67 +266,116 @@ def save_account():
     now = time.time()
     current_user = session['username']
 
-    # Cleanup expired accounts
-    Account.query.filter(Account.saved_at < now - TOKEN_EXPIRE_SECONDS).delete()
-    db.session.commit()
-
-    # Neu da co account voi cung user_id cua user nay -> cap nhat
-    existing = Account.query.filter_by(user_id=user_id, owner_username=current_user).first()
-    if existing:
-        existing.token = token
-        existing.name = name or existing.name
-        existing.current_poster_url = current_poster_url
-        existing.user_path = user_path
-        existing.saved_at = now
+    try:
+        Account.query.filter(Account.saved_at < now - TOKEN_EXPIRE_SECONDS).delete()
         db.session.commit()
-        return jsonify({'success': True, 'id': existing.id, 'updated': True})
 
-    # Kiem tra gioi han cho user nay
-    user_accounts_count = Account.query.filter_by(owner_username=current_user).count()
-    if user_accounts_count >= MAX_ACCOUNTS:
-        # Xoa account cu nhat cua user nay
-        oldest_account = Account.query.filter_by(owner_username=current_user).order_by(Account.saved_at).first()
-        if oldest_account:
-            db.session.delete(oldest_account)
+        existing = Account.query.filter_by(user_id=user_id, owner_username=current_user).first()
+        if existing:
+            existing.token = token
+            existing.name = name or existing.name
+            existing.current_poster_url = current_poster_url
+            existing.user_path = user_path
+            existing.saved_at = now
             db.session.commit()
+            return jsonify({'success': True, 'id': existing.id, 'updated': True})
 
-    new_account = Account(
-        id=str(uuid.uuid4()),
-        owner_username=current_user,
-        name=name or f'Tài khoản {user_accounts_count + 1}',
-        token=token,
-        user_id=user_id,
-        short_id=short_id,
-        current_poster_url=current_poster_url,
-        user_path=user_path,
-        saved_at=now
-    )
-    db.session.add(new_account)
-    db.session.commit()
-    return jsonify({'success': True, 'id': new_account.id, 'updated': False})
+        user_accounts_count = Account.query.filter_by(owner_username=current_user).count()
+        if user_accounts_count >= MAX_ACCOUNTS:
+            oldest_account = Account.query.filter_by(owner_username=current_user).order_by(Account.saved_at).first()
+            if oldest_account:
+                db.session.delete(oldest_account)
+                db.session.commit()
+
+        new_account = Account(
+            id=str(uuid.uuid4()),
+            owner_username=current_user,
+            name=name or f'Tài khoản {user_accounts_count + 1}',
+            token=token,
+            user_id=user_id,
+            short_id=short_id,
+            current_poster_url=current_poster_url,
+            user_path=user_path,
+            saved_at=now
+        )
+        db.session.add(new_account)
+        db.session.commit()
+        return jsonify({'success': True, 'id': new_account.id, 'updated': False})
+    except Exception as e:
+        print(f"[Fallback] DB Error on save_account: {e}")
+        accounts = _load_accounts()
+        accounts = [a for a in accounts if (now - a.get('saved_at', 0)) < TOKEN_EXPIRE_SECONDS]
+        
+        existing = next((a for a in accounts if a.get('user_id') == user_id and a.get('owner_username') == current_user), None)
+        if existing:
+            existing['token'] = token
+            existing['name'] = name or existing['name']
+            existing['current_poster_url'] = current_poster_url
+            existing['user_path'] = user_path
+            existing['saved_at'] = now
+            _save_accounts(accounts)
+            return jsonify({'success': True, 'id': existing['id'], 'updated': True})
+            
+        user_accounts = [a for a in accounts if a.get('owner_username') == current_user]
+        if len(user_accounts) >= MAX_ACCOUNTS:
+            user_accounts.sort(key=lambda a: a['saved_at'])
+            oldest_id = user_accounts[0]['id']
+            accounts = [a for a in accounts if a['id'] != oldest_id]
+            
+        new_account = {
+            'id': str(uuid.uuid4()),
+            'owner_username': current_user,
+            'name': name or f'Tài khoản {len(user_accounts) + 1}',
+            'token': token,
+            'user_id': user_id,
+            'short_id': short_id,
+            'current_poster_url': current_poster_url,
+            'user_path': user_path,
+            'saved_at': now,
+        }
+        accounts.append(new_account)
+        _save_accounts(accounts)
+        return jsonify({'success': True, 'id': new_account['id'], 'updated': False})
 
 
 @app.route('/api/accounts/<account_id>', methods=['DELETE'])
 @login_required
 def delete_account(account_id):
     current_user = session['username']
-    account = Account.query.filter_by(id=account_id, owner_username=current_user).first()
-    if not account:
-        return jsonify({'success': False, 'message': 'Không tìm thấy tài khoản'}), 404
-    db.session.delete(account)
-    db.session.commit()
-    return jsonify({'success': True})
+    try:
+        account = Account.query.filter_by(id=account_id, owner_username=current_user).first()
+        if not account:
+            return jsonify({'success': False, 'message': 'Không tìm thấy tài khoản'}), 404
+        db.session.delete(account)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"[Fallback] DB Error on delete_account: {e}")
+        accounts = _load_accounts()
+        before = len(accounts)
+        accounts = [a for a in accounts if not (a['id'] == account_id and a.get('owner_username') == current_user)]
+        if len(accounts) == before:
+            return jsonify({'success': False, 'message': 'Không tìm thấy tài khoản'}), 404
+        _save_accounts(accounts)
+        return jsonify({'success': True})
 
 
 @app.route('/api/accounts/<account_id>/token', methods=['GET'])
 @login_required
 def get_account_token(account_id):
-    """Tra ve token de dien vao o nhap (khong lo thong tin toan bo)"""
     current_user = session['username']
-    account = Account.query.filter_by(id=account_id, owner_username=current_user).first()
-    if not account:
-        return jsonify({'success': False}), 404
-    return jsonify({'success': True, 'token': account.token})
+    try:
+        account = Account.query.filter_by(id=account_id, owner_username=current_user).first()
+        if not account:
+            return jsonify({'success': False}), 404
+        return jsonify({'success': True, 'token': account.token})
+    except Exception as e:
+        print(f"[Fallback] DB Error on get_account_token: {e}")
+        accounts = _load_accounts()
+        account = next((a for a in accounts if a['id'] == account_id and a.get('owner_username') == current_user), None)
+        if not account:
+            return jsonify({'success': False}), 404
+        return jsonify({'success': True, 'token': account['token']})
 
 
 @app.route('/api/accounts/<account_id>/rename', methods=['POST'])
@@ -275,13 +387,23 @@ def rename_account(account_id):
         return jsonify({'success': False, 'message': 'Tên không được để trống'}), 400
     
     current_user = session['username']
-    account = Account.query.filter_by(id=account_id, owner_username=current_user).first()
-    if not account:
-        return jsonify({'success': False}), 404
-    
-    account.name = new_name
-    db.session.commit()
-    return jsonify({'success': True})
+    try:
+        account = Account.query.filter_by(id=account_id, owner_username=current_user).first()
+        if not account:
+            return jsonify({'success': False}), 404
+        
+        account.name = new_name
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"[Fallback] DB Error on rename_account: {e}")
+        accounts = _load_accounts()
+        account = next((a for a in accounts if a['id'] == account_id and a.get('owner_username') == current_user), None)
+        if not account:
+            return jsonify({'success': False}), 404
+        account['name'] = new_name
+        _save_accounts(accounts)
+        return jsonify({'success': True})
 
 
 # =============================================================================
@@ -299,21 +421,16 @@ def upload():
     if not token or not file:
         return jsonify({"success": False, "message": "Missing token or file"}), 400
 
-    # Reset logs
     loadtran.log_buffer.clear()
 
-    # Save file
     file_path = os.path.join(UPLOAD_FOLDER, "cropped_" + file.filename)
     file.save(file_path)
 
     def run_worker():
         try:
             loadtran.tprint("== BẮT ĐẦU XỬ LÝ ==")
-
-            # 1. Khởi động Sign Bridge nếu chưa chạy
             loadtran._start_sign_bridge()
-
-            # 2. Xác thực token và lấy thông tin tài khoản
+            
             mode_label = {"playerimage": "Ảnh tải trận", "flowborn_marksman": "Flowborn (Xạ thủ)", "flowborn_mage": "Flowborn (Pháp sư)"}.get(mode, mode)
             loadtran.tprint(f"🔑 Đang xác thực token... (Chế độ: {mode_label})")
             user_path = loadtran.get_user_path(token, mode=mode)
@@ -323,14 +440,12 @@ def upload():
 
             loadtran.tprint(f"✅ Xác thực thành công! Đã tìm thấy tài khoản.")
 
-            # 3. Chuẩn bị ảnh
             loadtran.tprint(f"🖼️  Đang chuẩn bị ảnh để tải lên...")
             media_info = loadtran.prepare_media(Path(file_path), auto_resize=False)
             if not media_info:
                 loadtran.tprint("❌ Lỗi xử lý ảnh! File ảnh bị hỏng hoặc định dạng không được hỗ trợ.")
                 return
 
-            # 4. Tiến hành tải lên
             acc = {
                 "label": "Web-Account",
                 "token": token,
@@ -345,7 +460,6 @@ def upload():
         except Exception as e:
             loadtran.tprint(f"❌ Đã xảy ra lỗi không mong muốn: {e}")
 
-    # Run in background
     thread = threading.Thread(target=run_worker, daemon=True)
     thread.start()
 
@@ -361,6 +475,9 @@ def get_logs():
 
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
+    try:
+        with app.app_context():
+            db.create_all()
+    except Exception as e:
+        print(f"Failed to initialize database: {e}")
     app.run(debug=True, host='0.0.0.0', port=5000)
