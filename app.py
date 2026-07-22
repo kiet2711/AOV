@@ -209,6 +209,10 @@ def verify_token():
         'short_id': info['short_id'],
         'current_poster_url': info['current_poster_url'],
         'user_path': info['user_path'],
+        'charac_name': info.get('charac_name'),
+        'role_job_name': info.get('role_job_name'),
+        'head_url': info.get('head_url'),
+        'rank_grade_star': info.get('rank_grade_star')
     })
 
 

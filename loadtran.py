@@ -554,12 +554,39 @@ def get_account_info(auth_token):
     except Exception:
         pass
 
+    # 3. Lay thong tin in-game (characName, etc.)
+    charac_name = None
+    role_job_name = None
+    head_url = None
+    rank_grade_star = None
+    
+    try:
+        hdrs_info = dict(FIXED_HEADERS)
+        hdrs_info["content-type"] = "application/json"
+        hdrs_info["msdk-itopencodeparam"] = auth_token
+        
+        resp_info = sess.post(API_BASE + "/api/user/game/getselfuserinfo", json={}, headers=hdrs_info, timeout=25)
+        r_info = resp_info.json()
+        if r_info.get("data") and r_info["data"].get("role"):
+            role_info = r_info["data"]["role"]
+            charac_name = role_info.get("characName")
+            head_url = role_info.get("headUrl")
+            user_game_info = role_info.get("userGameInfo", {})
+            role_job_name = user_game_info.get("roleJobName")
+            rank_grade_star = user_game_info.get("rankGradeStar")
+    except Exception:
+        pass
+
     return {
         "token_valid": True,
         "user_id": user_id,
         "short_id": user_id[:8] if user_id else None,
         "current_poster_url": current_poster_url,
         "user_path": user_path,
+        "charac_name": charac_name,
+        "role_job_name": role_job_name,
+        "head_url": head_url,
+        "rank_grade_star": rank_grade_star
     }
 
 

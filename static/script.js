@@ -97,7 +97,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
                 ${posterHtml}
                 <div class="account-card-name" title="${acc.name}">${acc.name}</div>
-                <div class="account-card-uid">${acc.short_id || '——'}</div>
                 <span class="status-badge ${s.cls}">${s.label}</span>
                 <div style="font-size:0.62rem;color:var(--text-faint)">${ageText}</div>
             `;
@@ -293,7 +292,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 currentVerifyData = data;
 
                 // Update preview
-                previewUID.textContent = data.short_id ? `${data.short_id}...` : '(không rõ)';
+                if (data.charac_name) {
+                    previewUID.innerHTML = `<span style="color:#ffd700; font-weight:bold; font-size: 1.1em">${data.charac_name}</span>`;
+                    if (data.role_job_name) {
+                        previewUID.innerHTML += ` <span style="font-size: 0.9em; color: #ccc">(${data.role_job_name})</span>`;
+                    }
+                } else {
+                    previewUID.textContent = 'Chưa rõ tên';
+                }
+
                 if (data.current_poster_url) {
                     previewPosterImg.src = data.current_poster_url;
                     previewPosterImg.style.display = 'block';
@@ -309,15 +316,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 const accRes = await fetch('/api/accounts');
                 const accData = await accRes.json();
                 const existing = (accData.accounts || []).find(a => a.short_id === data.short_id);
-                if (existing) {
+                if (existing && existing.name && !existing.name.startsWith("Tài khoản ")) {
                     accountNameInput.value = existing.name;
                     // Highlight active card
                     document.querySelectorAll('.account-card').forEach(c => {
                         c.classList.toggle('active-card', c.dataset.id === existing.id);
                     });
                 } else {
-                    if (!accountNameInput.value.trim()) {
+                    if (data.charac_name) {
+                        accountNameInput.value = data.charac_name;
+                    } else if (!accountNameInput.value.trim()) {
                         accountNameInput.value = 'Tài khoản ' + ((accData.accounts || []).length + 1);
+                    }
+                    if (existing) {
+                        document.querySelectorAll('.account-card').forEach(c => {
+                            c.classList.toggle('active-card', c.dataset.id === existing.id);
+                        });
                     }
                 }
 
