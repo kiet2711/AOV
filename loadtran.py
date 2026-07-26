@@ -638,7 +638,7 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
     scene_name = "FlowbornPoster" if is_flowborn else "PlayerimagePoster"
 
     if mode == "flowborn_marksman":
-        file_prefix = f"5/{gender}/"
+        file_prefix = "5/1/"
         mainJob = 5
         bg_id = "30"
         bg_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/4uxOQChv.png"
@@ -650,7 +650,7 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
             baseInfo_id = "32"
             baseInfo_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/Pd7zTH2f.png"
     elif mode == "flowborn_mage":
-        file_prefix = f"4/{gender}/"
+        file_prefix = "4/1/"
         mainJob = 4
         bg_id = "30"
         bg_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/4uxOQChv.png"

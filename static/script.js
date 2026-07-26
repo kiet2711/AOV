@@ -259,6 +259,141 @@ document.addEventListener('DOMContentLoaded', function () {
 
     verifyBtn.addEventListener('click', triggerVerify);
 
+    // ════════════════════════════════════════
+    //  HAR / TOKEN & IMAGE DRAG & DROP
+    // ════════════════════════════════════════
+    const tokenDropZone = document.getElementById('tokenDropZone');
+    const harDropZone = document.getElementById('harDropZone');
+    const harFileInput = document.getElementById('harFileInput');
+
+    // Ngăn trình duyệt mở file mặc định khi thả vào trang
+    window.addEventListener('dragover', (e) => e.preventDefault());
+    window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const files = e.dataTransfer.files;
+        if (!files || files.length === 0) return;
+        const file = files[0];
+        const fname = file.name.toLowerCase();
+        if (fname.endsWith('.har') || fname.endsWith('.json') || fname.endsWith('.txt') || fname.endsWith('.log')) {
+            handleTokenFile(file);
+        } else if (file.type.startsWith('image/') || fname.endsWith('.png') || fname.endsWith('.jpg') || fname.endsWith('.jpeg') || fname.endsWith('.webp') || fname.endsWith('.gif')) {
+            handleImageFile(file);
+        }
+    });
+
+    if (harDropZone && harFileInput) {
+        harDropZone.addEventListener('click', (e) => {
+            harFileInput.click();
+        });
+
+        harFileInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+            handleTokenFile(files[0]);
+        });
+    }
+
+    [tokenDropZone, harDropZone].forEach(zone => {
+        if (!zone) return;
+        ['dragenter', 'dragover'].forEach(evt => {
+            zone.addEventListener(evt, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.add('drag-over');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(evt => {
+            zone.addEventListener(evt, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.remove('drag-over');
+            });
+        });
+
+        zone.addEventListener('drop', (e) => {
+            e.stopPropagation();
+            const files = e.dataTransfer.files;
+            if (!files || files.length === 0) return;
+            handleTokenFile(files[0]);
+        });
+    });
+
+    function handleTokenFile(file) {
+        verifyStatus.style.display = 'flex';
+        verifyStatus.className = 'verify-status loading';
+        verifyStatus.innerHTML = `<span class="spinner"></span> Đang đọc file <b>${file.name}</b> và tìm token...`;
+        accountPreview.style.display = 'none';
+
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            const text = evt.target.result;
+            const token = extractTokenFromText(text);
+            if (token) {
+                tokenInput.value = token;
+                verifyBtn.disabled = false;
+                checkUploadReady();
+                clearTimeout(verifyDebounce);
+                verifyStatus.className = 'verify-status success';
+                verifyStatus.innerHTML = `🎉 Đã lấy token từ file <b>${file.name}</b>! Đang tự động xác thực...`;
+                setTimeout(() => doVerify(token), 300);
+            } else {
+                verifyStatus.className = 'verify-status error';
+                verifyStatus.innerHTML = `❌ Không tìm thấy token (msdk-itopencodeparam) trong file <b>${file.name}</b>!`;
+            }
+        };
+        reader.onerror = function() {
+            verifyStatus.className = 'verify-status error';
+            verifyStatus.innerHTML = `❌ Lỗi khi đọc file <b>${file.name}</b>!`;
+        };
+        reader.readAsText(file);
+    }
+
+    function extractTokenFromText(text) {
+        try {
+            const data = JSON.parse(text);
+            if (data && data.log && Array.isArray(data.log.entries)) {
+                const entries = data.log.entries;
+                for (let i = entries.length - 1; i >= 0; i--) {
+                    const req = entries[i].request;
+                    if (!req) continue;
+                    if (Array.isArray(req.headers)) {
+                        for (let h of req.headers) {
+                            if (h.name && (h.name.toLowerCase() === 'msdk-itopencodeparam' || h.name.toLowerCase() === 'itopencodeparam')) {
+                                if (h.value && h.value.trim().length >= 50) {
+                                    return h.value.trim();
+                                }
+                            }
+                        }
+                    }
+                    if (Array.isArray(req.queryString)) {
+                        for (let q of req.queryString) {
+                            if (q.name && (q.name.toLowerCase() === 'itopencodeparam' || q.name.toLowerCase() === 'msdk-itopencodeparam' || q.name.toLowerCase() === 'access_token')) {
+                                if (q.value && q.value.trim().length >= 50) {
+                                    return q.value.trim();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e) {}
+
+        const regexes = [
+            /itopencodeparam(?:%22|")?(?:\s*[:=]\s*|\s*,\s*(?:%22|")?value(?:%22|")?\s*:\s*)(?:%22|")?([0-9a-fA-F]{50,800})/gi,
+            /(?:msdk-)?itopencodeparam["'\s:=,\]\[\}{_a-zA-Z]*["'=\s]+([0-9a-fA-F]{50,800})/gi,
+            /(?:access_token|token)(?:%22|")?(?:\s*[:=]\s*|\s*,\s*(?:%22|")?value(?:%22|")?\s*:\s*)(?:%22|")?([0-9a-fA-F]{50,800})/gi
+        ];
+
+        for (let regex of regexes) {
+            const matches = [...text.matchAll(regex)];
+            if (matches && matches.length > 0) {
+                return matches[matches.length - 1][1];
+            }
+        }
+        return null;
+    }
+
     function triggerVerify() {
         const token = tokenInput.value.trim();
         if (!token) return;
@@ -365,10 +500,8 @@ document.addEventListener('DOMContentLoaded', function () {
     //  IMAGE CROP
     // ════════════════════════════════════════
 
-    imageInput.addEventListener('change', function (e) {
-        const files = e.target.files;
-        if (!files || files.length === 0) return;
-
+    function handleImageFile(file) {
+        if (!file) return;
         const reader = new FileReader();
         reader.onload = function (ev) {
             imageElement.src = ev.target.result;
@@ -382,7 +515,13 @@ document.addEventListener('DOMContentLoaded', function () {
             });
             checkUploadReady();
         };
-        reader.readAsDataURL(files[0]);
+        reader.readAsDataURL(file);
+    }
+
+    imageInput.addEventListener('change', function (e) {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
+        handleImageFile(files[0]);
     });
 
     function checkUploadReady() {

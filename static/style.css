@@ -489,6 +489,49 @@ img { display: block; max-width: 100%; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── HAR Drop Box ── */
+.har-drop-box {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-sm);
+    padding: 18px 12px;
+    text-align: center;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.02);
+    transition: all 0.2s ease;
+}
+.har-drop-box:hover, .har-drop-box.drag-over {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.08);
+}
+.har-drop-box.drag-over {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+    transform: scale(1.01);
+}
+.har-drop-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    pointer-events: none;
+}
+.har-icon {
+    font-size: 2rem;
+    line-height: 1;
+}
+.har-text {
+    font-size: 0.95rem;
+    color: var(--text);
+}
+.har-text strong {
+    color: #10b981;
+    text-decoration: underline;
+}
+.har-subtext {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+
 /* ── Responsive ── */
 @media (max-width: 480px) {
     .account-preview { flex-direction: column; }
