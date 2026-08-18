@@ -4,3 +4,5 @@ accounts.json
 users.json
 *.pyc
 *.har
+.env
+*.db

@@ -17,10 +17,14 @@ loadtran._start_sign_bridge()
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'a_very_secret_key_12345')
 
-# Configure Database
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_7bcWRKl4ETtF@ep-restless-salad-azv3963j-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
+# Configure Database (Use environment variable DATABASE_URL or SQLite fallback)
+db_url = os.environ.get('DATABASE_URL', 'sqlite:///app.db')
+if db_url.startswith('postgres://'):
+    db_url = db_url.replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
