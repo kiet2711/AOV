@@ -55,14 +55,14 @@
                 <!-- Cách 2: Chọn hoặc kéo thả file HAR -->
                 <div class="form-group" id="harFormGroup">
                     <label>Cách 2: Quét Token từ file HAR / Log <span class="label-hint">(Tự động trích xuất)</span></label>
-                    <div class="har-drop-box" id="harDropZone" title="Nhấn để chọn file hoặc kéo thả file vào đây">
-                        <input type="file" id="harFileInput" accept=".har,.json,.txt,.log" style="display:none">
+                    <label class="har-drop-box" id="harDropZone" for="harFileInput" title="Nhấn để chọn file hoặc kéo thả file vào đây">
+                        <input type="file" id="harFileInput" accept="*/*" style="display:none">
                         <div class="har-drop-content">
                             <span class="har-icon">📂</span>
                             <span class="har-text" id="harDropText"><strong>Nhấn chọn file HAR</strong> hoặc kéo thả file vào đây</span>
                             <span class="har-subtext">Hỗ trợ file .har, .json, .txt (từ Reqable, HttpCanary, Fiddler)</span>
                         </div>
-                    </div>
+                    </label>
                     <div id="verifyStatus" class="verify-status" style="display:none"></div>
                 </div>
 

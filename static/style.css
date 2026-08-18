@@ -491,6 +491,7 @@ img { display: block; max-width: 100%; }
 
 /* ── HAR Drop Box ── */
 .har-drop-box {
+    display: block;
     border: 2px dashed var(--border);
     border-radius: var(--radius-sm);
     padding: 18px 12px;
@@ -498,6 +499,8 @@ img { display: block; max-width: 100%; }
     cursor: pointer;
     background: rgba(255, 255, 255, 0.02);
     transition: all 0.2s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 .har-drop-box:hover, .har-drop-box.drag-over {
     border-color: #10b981;

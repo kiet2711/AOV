@@ -281,15 +281,12 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    if (harDropZone && harFileInput) {
-        harDropZone.addEventListener('click', (e) => {
-            harFileInput.click();
-        });
-
+    if (harFileInput) {
         harFileInput.addEventListener('change', (e) => {
             const files = e.target.files;
             if (!files || files.length === 0) return;
             handleTokenFile(files[0]);
+            harFileInput.value = '';
         });
     }
 
@@ -522,6 +519,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const files = e.target.files;
         if (!files || files.length === 0) return;
         handleImageFile(files[0]);
+        imageInput.value = '';
     });
 
     function checkUploadReady() {
