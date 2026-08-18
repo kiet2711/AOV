@@ -10,6 +10,10 @@ from flask_sqlalchemy import SQLAlchemy
 import loadtran
 from pathlib import Path
 
+# Start Chaos VM Sign Bridge
+loadtran._start_sign_bridge()
+
+
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'a_very_secret_key_12345')
 

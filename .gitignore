@@ -3,3 +3,4 @@ uploads/
 accounts.json
 users.json
 *.pyc
+*.har
