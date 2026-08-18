@@ -186,32 +186,54 @@ def clean_token(raw):
 
     return raw.strip().strip('"').strip("'")
 
+def _find_node_binary():
+    # 1. Tim trong PATH he thong
+    nb = shutil.which("node") or shutil.which("nodejs")
+    if nb:
+        return nb
+    # 2. Tim trong VirtualEnv (goi nodejs-bin cai qua pip)
+    candidates = [
+        Path(sys.prefix) / "bin" / "node",
+        Path(sys.prefix) / "Scripts" / "node.exe",
+        Path(sys.prefix) / "Scripts" / "node",
+        Path(sys.executable).parent / "node",
+        Path(sys.executable).parent / "node.exe",
+        Path("/usr/local/bin/node"),
+        Path("/usr/bin/node"),
+    ]
+    for p in candidates:
+        if p.exists():
+            return str(p)
+    return "node"
+
+def _check_bridge_alive():
+    try:
+        conn = http.client.HTTPConnection("127.0.0.1", SIGN_BRIDGE_PORT, timeout=1.0)
+        conn.request("GET", "/health")
+        resp = conn.getresponse()
+        return resp.status == 200
+    except Exception:
+        return False
+
 def _start_sign_bridge():
     global _sign_bridge_proc
     with _sign_bridge_lock:
-        if _sign_bridge_proc and _sign_bridge_proc.poll() is None:
+        if _check_bridge_alive():
             return
-        # Kiem tra neu cong da co service chay san
-        try:
-            conn = http.client.HTTPConnection("127.0.0.1", SIGN_BRIDGE_PORT, timeout=1.0)
-            conn.request("GET", "/health")
-            resp = conn.getresponse()
-            if resp.status == 200:
-                return
-        except Exception:
-            pass
 
         bridge = _find_sign_bridge()
         if not bridge:
+            print("[WARN] Khong tim thay file sign_bridge.js")
             return
+        node_bin = _find_node_binary()
         try:
-            node_bin = shutil.which("node") or shutil.which("nodejs") or "node"
             _sign_bridge_proc = subprocess.Popen(
                 [node_bin, bridge, str(SIGN_BRIDGE_PORT)],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            time.sleep(1.0)
-        except Exception:
-            pass
+            time.sleep(1.2)
+        except Exception as e:
+            print(f"[WARN] Khong the khoi dong sign_bridge bang '{node_bin}': {e}")
+
 
 def _request_bridge(endpoint, payload_dict, timeout=SIGN_BRIDGE_TIMEOUT):
     try:
