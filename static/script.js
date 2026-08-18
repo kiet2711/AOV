@@ -241,7 +241,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ════════════════════════════════════════
 
     tokenInput.addEventListener('input', () => {
-        const val = tokenInput.value.trim();
+        let val = tokenInput.value.trim();
         verifyBtn.disabled = !val;
         if (currentVerifyData) {
             currentVerifyData = null;
@@ -253,11 +253,23 @@ document.addEventListener('DOMContentLoaded', function () {
         // Debounce auto-verify (1.2s sau khi dung go)
         clearTimeout(verifyDebounce);
         if (val.length > 20) {
-            verifyDebounce = setTimeout(triggerVerify, 1200);
+            verifyDebounce = setTimeout(triggerVerify, 1000);
         }
     });
 
+    tokenInput.addEventListener('paste', () => {
+        setTimeout(() => {
+            const val = tokenInput.value.trim();
+            const extracted = extractTokenFromText(val);
+            if (extracted && extracted !== val) {
+                tokenInput.value = extracted;
+            }
+            triggerVerify();
+        }, 50);
+    });
+
     verifyBtn.addEventListener('click', triggerVerify);
+
 
     // ════════════════════════════════════════
     //  HAR / TOKEN & IMAGE DRAG & DROP
@@ -392,10 +404,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function triggerVerify() {
-        const token = tokenInput.value.trim();
-        if (!token) return;
+        let val = tokenInput.value.trim();
+        if (!val) return;
+        const extracted = extractTokenFromText(val);
+        if (extracted) {
+            val = extracted;
+            tokenInput.value = extracted;
+        }
         clearTimeout(verifyDebounce);
-        doVerify(token);
+        doVerify(val);
     }
 
     async function doVerify(token) {
@@ -416,12 +433,16 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await res.json();
 
             if (data.success) {
+                if (data.token && data.token !== tokenInput.value) {
+                    tokenInput.value = data.token;
+                }
                 // Success
                 verifyStatus.className = 'verify-status success';
                 verifyStatus.innerHTML = `✅ Token hợp lệ! Tài khoản đã được xác thực.`;
                 verifyBtnIcon.textContent = '✅';
 
                 currentVerifyData = data;
+
 
                 // Update preview
                 if (data.charac_name) {

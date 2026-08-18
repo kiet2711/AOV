@@ -199,9 +199,13 @@ def register():
 @login_required
 def verify_token():
     data = request.get_json()
-    token = (data or {}).get('token', '').strip()
-    if not token:
+    raw_token = (data or {}).get('token', '').strip()
+    if not raw_token:
         return jsonify({'success': False, 'message': 'Token không được để trống'}), 400
+
+    token = loadtran.clean_token(raw_token)
+    if not token:
+        return jsonify({'success': False, 'message': 'Không tìm thấy mã token hợp lệ trong dữ liệu nhập'}), 400
 
     try:
         info = loadtran.get_account_info(token)
@@ -213,6 +217,7 @@ def verify_token():
 
     return jsonify({
         'success': True,
+        'token': info.get('clean_token', token),
         'user_id': info['user_id'],
         'short_id': info['short_id'],
         'current_poster_url': info['current_poster_url'],
@@ -258,12 +263,12 @@ def get_accounts():
         for a in user_accounts:
             result.append({
                 'id': a['id'],
-                'name': a['name'],
-                'short_id': a.get('short_id'),
+                'name': a.get('name', 'Tài khoản'),
+                'short_id': a.get('short_id', ''),
                 'current_poster_url': a.get('current_poster_url'),
-                'saved_at': a['saved_at'],
-                'status': _get_token_status(a['saved_at']),
-                'age_minutes': int((now - a['saved_at']) / 60),
+                'saved_at': a.get('saved_at', now),
+                'status': _get_token_status(a.get('saved_at', now)),
+                'age_minutes': int((now - a.get('saved_at', now)) / 60),
             })
         return jsonify({'accounts': result})
 
@@ -272,7 +277,7 @@ def get_accounts():
 @login_required
 def save_account():
     data = request.get_json()
-    token = (data or {}).get('token', '').strip()
+    token = loadtran.clean_token((data or {}).get('token', '').strip())
     name = (data or {}).get('name', '').strip()
     user_id = (data or {}).get('user_id', '').strip()
     short_id = (data or {}).get('short_id', '').strip()
@@ -430,7 +435,7 @@ def rename_account(account_id):
 @app.route('/upload', methods=['POST'])
 @login_required
 def upload():
-    token = request.form.get('token')
+    token = loadtran.clean_token(request.form.get('token'))
     is_share = request.form.get('is_share') == 'true'
     mode = request.form.get('mode', 'playerimage')
     gender = int(request.form.get('gender', '1'))
@@ -438,6 +443,7 @@ def upload():
 
     if not token or not file:
         return jsonify({"success": False, "message": "Missing token or file"}), 400
+
 
     loadtran.log_buffer.clear()
 

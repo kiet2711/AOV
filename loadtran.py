@@ -13,13 +13,16 @@ import io
 import json
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
 import tempfile
 import threading
 import time
+import urllib.parse
 from pathlib import Path
+
 
 try:
     import requests
@@ -152,6 +155,37 @@ def _find_sign_bridge():
             return str(p)
     return None
 
+def clean_token(raw):
+    """
+    Tu dong trich xuat token 256 hex chuan tu moi loai input:
+    - Raw token hex (256 ky tu)
+    - URL in-game (chua itopencodeparam=...)
+    - Chuoi key-value (itopencodeparam: ..., msdk-itopencodeparam: ...)
+    - JSON / HAR snippet
+    """
+    if not raw:
+        return ""
+    raw = str(raw).strip()
+    # 1. Parse URL / query string
+    if "itopencodeparam=" in raw or "access_token=" in raw or "http://" in raw or "https://" in raw:
+        unquoted = urllib.parse.unquote(raw)
+        m = re.search(r'itopencodeparam=([0-9a-fA-F]{50,800})', unquoted, re.IGNORECASE)
+        if m:
+            return m.group(1).strip()
+        m2 = re.search(r'msdk-itopencodeparam[:=]\s*([0-9a-fA-F]{50,800})', unquoted, re.IGNORECASE)
+        if m2:
+            return m2.group(1).strip()
+        m3 = re.search(r'access_token=([0-9a-fA-F]{50,800})', unquoted, re.IGNORECASE)
+        if m3:
+            return m3.group(1).strip()
+
+    # 2. Tim chuoi hex dai nhat (token MSDK thuong dai 256 ky tu hex)
+    matches = re.findall(r'[0-9a-fA-F]{64,800}', raw)
+    if matches:
+        return max(matches, key=len).strip()
+
+    return raw.strip().strip('"').strip("'")
+
 def _start_sign_bridge():
     global _sign_bridge_proc
     with _sign_bridge_lock:
@@ -171,8 +205,9 @@ def _start_sign_bridge():
         if not bridge:
             return
         try:
+            node_bin = shutil.which("node") or shutil.which("nodejs") or "node"
             _sign_bridge_proc = subprocess.Popen(
-                ["node", bridge, str(SIGN_BRIDGE_PORT)],
+                [node_bin, bridge, str(SIGN_BRIDGE_PORT)],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             time.sleep(1.0)
         except Exception:
@@ -193,11 +228,13 @@ def _request_bridge(endpoint, payload_dict, timeout=SIGN_BRIDGE_TIMEOUT):
     return None
 
 def get_dynamic_encodeparam(auth_token, role_id=None):
+    auth_token = clean_token(auth_token)
     _start_sign_bridge()
     res = _request_bridge("/get_encodeparam", {"token": auth_token, "roleId": role_id})
     if res and res.get("code") == 0:
         return res.get("encodeparam")
     return None
+
 
 def test_sign_bridge():
     global _sign_bridge_ok
@@ -385,6 +422,7 @@ def scan_media(directory):
 def api_post(session, endpoint, payload, auth_token,
              retry_on_code1=False, max_retries=3, delay=3.0,
              fallback_token=None):
+    auth_token = clean_token(auth_token)
     hdrs = dict(FIXED_HEADERS)
     hdrs["Content-Type"]         = "application/json"
     hdrs["traceparent"]          = gen_traceparent()
@@ -435,6 +473,7 @@ def cos_put(session, url, data, headers, label=""):
     return resp
 
 def get_user_path(auth_token, mode="playerimage"):
+    auth_token = clean_token(auth_token)
     sess = make_session()
     if mode == "flowborn_marksman":
         payload = {"scene": "FlowbornPoster", "fileName": "5/1/test.png"}
@@ -454,8 +493,9 @@ def get_user_path(auth_token, mode="playerimage"):
 def get_account_info(auth_token):
     """
     Xac thuc token va lay thong tin tai khoan:
-    Tra ve: { token_valid, user_id, short_id, current_poster_url, user_path, charac_name, role_job_name, head_url, rank_grade_star }
+    Tra ve: { token_valid, clean_token, user_id, short_id, current_poster_url, user_path, charac_name, role_job_name, head_url, rank_grade_star }
     """
+    auth_token = clean_token(auth_token)
     _start_sign_bridge()
     sess = make_session()
 
@@ -479,7 +519,7 @@ def get_account_info(auth_token):
 
     if rc.get("code") != 0 or not rc.get("data"):
         return {
-            "token_valid": False, "user_id": None, "short_id": None,
+            "token_valid": False, "clean_token": auth_token, "user_id": None, "short_id": None,
             "current_poster_url": None, "user_path": None,
             "charac_name": None, "role_job_name": None,
             "head_url": None, "rank_grade_star": None
@@ -518,6 +558,7 @@ def get_account_info(auth_token):
 
     return {
         "token_valid": True,
+        "clean_token": auth_token,
         "user_id": user_id,
         "short_id": user_id[:8] if user_id else None,
         "current_poster_url": current_poster_url,
@@ -527,6 +568,7 @@ def get_account_info(auth_token):
         "head_url": head_url,
         "rank_grade_star": rank_grade_star
     }
+
 
 # =============================================================================
 # POSTER WORKER
