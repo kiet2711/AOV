@@ -549,8 +549,8 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
     if mode == "flowborn_marksman":
         file_prefix = "5/1/"
         mainJob = 5
-        bg_id = "30"
-        bg_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/4uxOQChv.png"
+        bg_id = "22"
+        bg_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/IDqWId2J.png"
         skinColor = 1
         if gender == 1:
             baseInfo_id = "31"
@@ -561,8 +561,8 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
     elif mode == "flowborn_mage":
         file_prefix = "4/1/"
         mainJob = 4
-        bg_id = "30"
-        bg_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/4uxOQChv.png"
+        bg_id = "22"
+        bg_picUrl = "https://kg-camp.mobagarena.com/manage/flowborn_official/IDqWId2J.png"
         skinColor = 1
         if gender == 1:
             baseInfo_id = "61"
@@ -578,6 +578,7 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
         baseInfo_id = ""
         baseInfo_picUrl = ""
         skinColor = 1
+
 
     if dry_run:
         tprint("{} [DRY RUN] Kiểm tra xong - không thực hiện tải lên ({:,}B)".format(step_tag, len(png_b)))
@@ -658,6 +659,19 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
         # D. Áp dụng poster
         tprint("{} 🔄 Đang áp dụng ảnh tải trận vào tài khoản...".format(step_tag))
         if is_flowborn:
+            # Tự động lấy cấu hình nhân vật hợp lệ từ server cho tài khoản này
+            try:
+                cfg_r = api_post(session, "/api/game/poster/flowborn/geteditorconfig", {"mainJob": mainJob}, auth_token)
+                if cfg_r.get("code") == 0 and cfg_r.get("data") and cfg_r["data"].get("baseList"):
+                    bl = cfg_r["data"]["baseList"]
+                    matched_base = next((b for b in bl if b.get("gender") == gender), bl[0])
+                    baseInfo_id = matched_base.get("id", baseInfo_id)
+                    baseInfo_picUrl = matched_base.get("picUrl", baseInfo_picUrl)
+                    gender = matched_base.get("gender", gender)
+                    skinColor = matched_base.get("skinColor", skinColor)
+            except Exception:
+                pass
+
             payload = {
                 "posterId": pid,
                 "isApply": True,
@@ -711,8 +725,11 @@ def poster_worker(idx, acc_lbl, auth_token, user_path,
             results[idx-1] = (True, pid, sticker_url, kind)
         else:
             err_msg = rp.get("msg", "Lỗi không rõ")
-            tprint("{} ❌ Áp dụng thất bại: {}".format(step_tag, err_msg[:60]))
-            results[idx-1] = (False, "Áp dụng: " + err_msg[:40])
+            if "-1993" in err_msg:
+                err_msg = "Tài khoản chưa tạo hoặc chưa chọn tướng này trong game (hoặc sai giới tính)"
+            tprint("{} ❌ Áp dụng thất bại: {}".format(step_tag, err_msg[:80]))
+            results[idx-1] = (False, "Áp dụng: " + err_msg[:50])
+
 
     except Exception as e:
         tprint("{} ❌ Lỗi hệ thống: {}".format(step_tag, str(e)[:80]))

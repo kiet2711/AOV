@@ -119,7 +119,38 @@ Hệ thống H5 Camp của Liên Quân (`kgvn-api.mobagarena.com`) sử dụng c
        ```
    - **Flowborn:**
      - **URL:** `POST /api/game/poster/flowborn/saveposter`
-     - **Payload:** Gồm `mainJob` (4 hoặc 5), `gender` (1: Nam, 2: Nữ), `baseInfo` và `bg`.
+     - **Payload:**
+       ```json
+       {
+         "posterId": "<posterId>",
+         "isApply": true,
+         "isShare": true,
+         "mainJob": 5,
+         "picInfo": {
+           "bg": {
+             "id": "22",
+             "picUrl": "https://kg-camp.mobagarena.com/manage/flowborn_official/IDqWId2J.png"
+           },
+           "baseInfo": {
+             "id": "31",
+             "gender": 1,
+             "mainJob": 5,
+             "picUrl": "https://kg-camp.mobagarena.com/manage/flowborn_official/QQD3ebSX.png",
+             "skinColor": 1
+           },
+           "stickerList": []
+         },
+         "picUrl": "https://kg-camp-ugc.mobagarena.com/2/704/<hash>/"
+       }
+       ```
+     - **Bảng tham số Base & BG Flowborn chuẩn**:
+       - **BG mặc định**: `id: "22"`, URL: `https://kg-camp.mobagarena.com/manage/flowborn_official/IDqWId2J.png`
+       - **Xạ thủ Nam (`mainJob: 5, gender: 1`)**: `baseInfo.id: "31"`, URL: `.../QQD3ebSX.png`
+       - **Xạ thủ Nữ (`mainJob: 5, gender: 2`)**: `baseInfo.id: "32"`, URL: `.../Pd7zTH2f.png`
+       - **Pháp sư Nam (`mainJob: 4, gender: 1`)**: `baseInfo.id: "61"`, URL: `.../epf8os8a.png`
+       - **Pháp sư Nữ (`mainJob: 4, gender: 2`)**: `baseInfo.id: "62"`, URL: `.../5fXAjyuq.png`
+       - *(Tool tự động gọi `/api/game/poster/flowborn/geteditorconfig` để lấy `baseList` hợp lệ theo tài khoản, tránh lỗi `-1993: player game data not ready`)*
+
 
 ---
 
