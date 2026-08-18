@@ -34,7 +34,10 @@ document.addEventListener('DOMContentLoaded', function () {
     let logInterval = null;
     let verifyDebounce = null;
     let currentVerifyData = null;   // thong tin tu verify thanh cong
+    let lastVerifiedToken = '';
+    let isVerifying = false;
     let renameTargetId = null;
+
 
     // ════════════════════════════════════════
     //  ACCOUNT MANAGEMENT
@@ -241,34 +244,38 @@ document.addEventListener('DOMContentLoaded', function () {
     // ════════════════════════════════════════
 
     tokenInput.addEventListener('input', () => {
-        let val = tokenInput.value.trim();
+        let raw = tokenInput.value;
+        let val = raw.trim();
         verifyBtn.disabled = !val;
+
+        // Neu dang nhap dung token da xac thuc thi khong xoa preview
+        if (lastVerifiedToken && (val === lastVerifiedToken || extractTokenFromText(raw) === lastVerifiedToken)) {
+            return;
+        }
+
         if (currentVerifyData) {
             currentVerifyData = null;
+            lastVerifiedToken = '';
             accountPreview.style.display = 'none';
             verifyStatus.style.display = 'none';
         }
         checkUploadReady();
 
-        // Debounce auto-verify (1.2s sau khi dung go)
+        // Debounce auto-verify
         clearTimeout(verifyDebounce);
         if (val.length > 20) {
-            verifyDebounce = setTimeout(triggerVerify, 1000);
+            verifyDebounce = setTimeout(triggerVerify, 800);
         }
     });
 
     tokenInput.addEventListener('paste', () => {
         setTimeout(() => {
-            const val = tokenInput.value.trim();
-            const extracted = extractTokenFromText(val);
-            if (extracted && extracted !== val) {
-                tokenInput.value = extracted;
-            }
             triggerVerify();
         }, 50);
     });
 
     verifyBtn.addEventListener('click', triggerVerify);
+
 
 
     // ════════════════════════════════════════
@@ -359,8 +366,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function extractTokenFromText(text) {
+        if (!text) return null;
+        // Loai bo ky tu an unicode va xuong dong
+        let clean = text.replace(/[\u200B-\u200D\uFEFF\u00A0\r\n\t]/g, ' ').trim();
+
         try {
-            const data = JSON.parse(text);
+            const data = JSON.parse(clean);
             if (data && data.log && Array.isArray(data.log.entries)) {
                 const entries = data.log.entries;
                 for (let i = entries.length - 1; i >= 0; i--) {
@@ -391,31 +402,41 @@ document.addEventListener('DOMContentLoaded', function () {
         const regexes = [
             /itopencodeparam(?:%22|")?(?:\s*[:=]\s*|\s*,\s*(?:%22|")?value(?:%22|")?\s*:\s*)(?:%22|")?([0-9a-fA-F]{50,800})/gi,
             /(?:msdk-)?itopencodeparam["'\s:=,\]\[\}{_a-zA-Z]*["'=\s]+([0-9a-fA-F]{50,800})/gi,
-            /(?:access_token|token)(?:%22|")?(?:\s*[:=]\s*|\s*,\s*(?:%22|")?value(?:%22|")?\s*:\s*)(?:%22|")?([0-9a-fA-F]{50,800})/gi
+            /(?:access_token|token)(?:%22|")?(?:\s*[:=]\s*|\s*,\s*(?:%22|")?value(?:%22|")?\s*:\s*)(?:%22|")?([0-9a-fA-F]{50,800})/gi,
+            /([0-9a-fA-F]{64,800})/g
         ];
 
         for (let regex of regexes) {
-            const matches = [...text.matchAll(regex)];
+            const matches = [...clean.matchAll(regex)];
             if (matches && matches.length > 0) {
-                return matches[matches.length - 1][1];
+                let best = matches[0][1] || matches[0][0];
+                for (let m of matches) {
+                    let cand = m[1] || m[0];
+                    if (cand.length > best.length) best = cand;
+                }
+                if (best.length >= 64) return best;
             }
         }
         return null;
     }
 
     function triggerVerify() {
-        let val = tokenInput.value.trim();
+        let raw = tokenInput.value;
+        if (!raw) return;
+        let val = extractTokenFromText(raw) || raw.trim();
         if (!val) return;
-        const extracted = extractTokenFromText(val);
-        if (extracted) {
-            val = extracted;
-            tokenInput.value = extracted;
+        if (tokenInput.value !== val) {
+            tokenInput.value = val;
         }
+        if (isVerifying) return;
         clearTimeout(verifyDebounce);
         doVerify(val);
     }
 
     async function doVerify(token) {
+        if (isVerifying) return;
+        isVerifying = true;
+
         // Show loading
         verifyStatus.style.display = 'flex';
         verifyStatus.className = 'verify-status loading';
@@ -433,8 +454,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await res.json();
 
             if (data.success) {
-                if (data.token && data.token !== tokenInput.value) {
-                    tokenInput.value = data.token;
+                const cleanTok = data.token || token;
+                lastVerifiedToken = cleanTok;
+                if (tokenInput.value !== cleanTok) {
+                    tokenInput.value = cleanTok;
                 }
                 // Success
                 verifyStatus.className = 'verify-status success';
@@ -442,7 +465,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 verifyBtnIcon.textContent = '✅';
 
                 currentVerifyData = data;
-
 
                 // Update preview
                 if (data.charac_name) {
@@ -500,17 +522,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 verifyStatus.innerHTML = `❌ ${data.message || 'Token không hợp lệ'}`;
                 verifyBtnIcon.textContent = '❌';
                 currentVerifyData = null;
+                lastVerifiedToken = '';
                 accountPreview.style.display = 'none';
             }
         } catch (e) {
             verifyStatus.className = 'verify-status error';
             verifyStatus.innerHTML = '❌ Lỗi kết nối máy chủ. Thử lại sau.';
             verifyBtnIcon.textContent = '🔍';
+            lastVerifiedToken = '';
+        } finally {
+            isVerifying = false;
+            verifyBtn.disabled = false;
+            checkUploadReady();
         }
-
-        verifyBtn.disabled = false;
-        checkUploadReady();
     }
+
 
     saveAccountBtn.addEventListener('click', saveAccount);
 

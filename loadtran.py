@@ -165,7 +165,9 @@ def clean_token(raw):
     """
     if not raw:
         return ""
-    raw = str(raw).strip()
+    # Xoa khoang trang, ky tu an unicode (zero-width, non-breaking space)
+    raw = re.sub(r'[\s\u200B\u200C\u200D\uFEFF\u00A0\r\n\t]', '', str(raw))
+
     # 1. Parse URL / query string
     if "itopencodeparam=" in raw or "access_token=" in raw or "http://" in raw or "https://" in raw:
         unquoted = urllib.parse.unquote(raw)
@@ -185,6 +187,7 @@ def clean_token(raw):
         return max(matches, key=len).strip()
 
     return raw.strip().strip('"').strip("'")
+
 
 def _find_node_binary():
     # 1. Tim trong PATH he thong
